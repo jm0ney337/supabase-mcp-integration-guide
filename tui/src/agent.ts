@@ -1,8 +1,8 @@
-// Runs one test query through the Claude Agent SDK against the Supabase MCP
-// server, using a token this process fetched from our OAuth backend. This is
-// the only point where the OAuth code and the Agent SDK meet — see
-// VALIDATION.md corrections #2 and #3 for why the error handling here checks
-// two separate things, not just isError.
+// Runs prompts through the Claude Agent SDK against the Supabase MCP server,
+// using a token this process fetched from our OAuth backend. This is the
+// only point where the OAuth code and the Agent SDK meet — see VALIDATION.md
+// corrections #2 and #3 for why the error handling here checks two separate
+// things, not just isError.
 import { query } from "@anthropic-ai/claude-agent-sdk"
 import { createRequire } from "node:module"
 
@@ -15,10 +15,25 @@ function installedSdkVersion(): string {
   }
 }
 
-export async function runTestQuery(accessToken: string, mcpUrl: string, prompt: string): Promise<void> {
-  console.log(
-    `Using @anthropic-ai/claude-agent-sdk@${installedSdkVersion()} — if every tool call 406s, check this against claude-agent-sdk-typescript#202 before assuming the OAuth code is wrong (see VALIDATION.md).`
-  )
+let loggedSdkVersion = false
+
+/**
+ * Runs one prompt against the Supabase MCP server. Returns the MCP tool
+ * names discovered from the run's `init` message, so callers (the REPL's
+ * `/tools`) can cache them without a dedicated discovery call.
+ */
+export async function runAgentPrompt(
+  accessToken: string,
+  mcpUrl: string,
+  prompt: string,
+  allowedTools: string[] = ["mcp__supabase__*"]
+): Promise<string[]> {
+  if (!loggedSdkVersion) {
+    console.log(
+      `Using @anthropic-ai/claude-agent-sdk@${installedSdkVersion()} — if every tool call 406s, check this against claude-agent-sdk-typescript#202 before assuming the OAuth code is wrong (see VALIDATION.md).`
+    )
+    loggedSdkVersion = true
+  }
 
   const options = {
     mcpServers: {
@@ -28,11 +43,15 @@ export async function runTestQuery(accessToken: string, mcpUrl: string, prompt: 
         headers: { Authorization: `Bearer ${accessToken}` },
       },
     },
-    allowedTools: ["mcp__supabase__*"],
+    allowedTools,
   }
+
+  let discoveredTools: string[] = []
 
   for await (const message of query({ prompt, options }) as AsyncIterable<any>) {
     if (message.type === "system" && message.subtype === "init") {
+      discoveredTools = (message.tools ?? []).filter((name: string) => name.startsWith("mcp__"))
+
       const unusable = (message.mcp_servers ?? []).filter(
         (s: any) => s.status === "failed" || s.status === "needs-auth"
       )
@@ -44,7 +63,7 @@ export async function runTestQuery(accessToken: string, mcpUrl: string, prompt: 
     if (message.type === "assistant") {
       for (const block of message.message.content ?? []) {
         if (block.type === "tool_use" && typeof block.name === "string" && block.name.startsWith("mcp__")) {
-          console.log("Calling tool:", block.name)
+          console.log(`Calling tool: ${block.name}(${JSON.stringify(block.input)})`)
         }
       }
     }
@@ -65,10 +84,12 @@ export async function runTestQuery(accessToken: string, mcpUrl: string, prompt: 
 
     if (message.type === "result") {
       if (message.subtype === "success") {
-        console.log("\nResult:\n" + message.result)
+        console.log("\n" + message.result)
       } else {
         console.error("Run ended without success:", message)
       }
     }
   }
+
+  return discoveredTools
 }

@@ -34,8 +34,8 @@ See `backend/db/schema.sql`.
 ```bash
 # Backend
 cd backend && npm install
-cp .env.example .env   # fill in SUPABASE_SERVICE_ROLE_KEY and BACKEND_API_TOKEN
-npm run dev             # vercel dev, http://localhost:3000
+cp .env.example .env   # fill in SUPABASE_SECRET_KEY and BACKEND_API_TOKEN
+npx vercel dev           # http://localhost:3000
 
 # TUI, in another terminal
 cd tui && npm install
