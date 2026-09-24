@@ -335,6 +335,7 @@
 
     <section id="connection-requirements">
       <h2><span class="h2-num">1</span> Connection requirements</h2>
+      <p class="tight text-mid">See also: Supabase's own <a href="https://supabase.com/docs/guides/getting-started/mcp" target="_blank" rel="noopener">MCP getting-started docs</a>, which cover client setup for Cursor, VS Code, Claude, ChatGPT, and others.</p>
       <table>
         <tr><th>Endpoint</th><th>Value</th><th>Source</th></tr>
         <tr><td>MCP server</td><td><code>https://mcp.supabase.com/mcp</code></td><td>Existing docs</td></tr>
@@ -344,6 +345,10 @@
         <tr><td>Discovery + registration</td><td><em>discovered at runtime, not a fixed path</em></td><td>Per RFC 9728 / RFC 8414</td></tr>
       </table>
       <p>Scoping query params (<code class="inline">project_ref</code>, <code class="inline">read_only</code>, <code class="inline">features</code>) live on the <strong>resource URL</strong>, not as OAuth scopes. Whatever you append to the MCP URL is reflected into the discovery call and into the <code class="inline">resource</code> parameter sent to the authorize and token endpoints.</p>
+      <div class="callout callout-note">
+        <span class="callout-label">Not every client can do DCR</span>
+        <p>Supabase's docs note this directly: <em>"If your MCP client requires an OAuth client ID and secret (e.g. Azure API Center), you can manually create an OAuth app."</em> If your platform can't perform dynamic registration, create one from your org's dashboard instead and use its fixed <code class="inline">client_id</code>/<code class="inline">client_secret</code> in place of step 3 below.</p>
+      </div>
     </section>
 
     <section id="prerequisites">
@@ -616,6 +621,13 @@ async function getOrRegisterClient(
         <pre><code></code></pre>
       </div>
       <p class="tight text-mid">The user completing this flow must be an org owner/admin, or they'll hit a 403 here.</p>
+
+      <div class="callout callout-note">
+        <span class="callout-label">Use the official button, not a generic one</span>
+        <p>Whatever UI element opens this URL, Supabase publishes a ready-made asset for it — don't design your own from scratch.</p>
+        <p style="margin:14px 0;"><img src="https://obuldanrptloktxcffvn.supabase.co/storage/v1/object/public/supabase-brand-assets/connect-supabase/connect-supabase-dark.svg" alt="Connect Supabase button" style="display:block;" /></p>
+        <p>Download the full kit (light/dark variants) from <a href="https://supabase.com/brand-assets" target="_blank" rel="noopener">supabase.com/brand-assets</a>. Usage terms apply — see that page before shipping it; it can't be recolored or modified.</p>
+      </div>
 
       <h3 id="step-5"><span class="step-tag">05</span>Local callback listener</h3>
       <p class="tight text-mid">For a CLI/script test harness, a minimal Express listener is enough. A production integration would do this server-side instead.</p>

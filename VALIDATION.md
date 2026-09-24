@@ -75,6 +75,37 @@ Anthropic docs, ahead of building `backend/` and `tui/`. This file only
   timeline, and `supabase/platform#37264`'s ship status weren't checked
   (no access to Supabase's internal repos or ticket trackers from here).
 
+## Later findings (Sept 2026) — comparison against official docs
+
+Prompted by comparing this project against Supabase's own published OAuth
+material: [`build-a-supabase-integration`](https://supabase.com/docs/guides/platform/oauth-apps/build-a-supabase-integration)
+(Management API OAuth) and the [official `connect-supabase` Edge Function
+example](https://github.com/supabase/supabase/tree/master/examples/edge-functions/supabase/functions/connect-supabase).
+
+- **Correction to earlier "not documented anywhere" framing.** Too strong.
+  Supabase's [MCP getting-started docs](https://supabase.com/docs/guides/getting-started/mcp)
+  state directly: *"By default the hosted Supabase MCP server uses dynamic
+  client registration to authenticate with your Supabase org."* So DCR's
+  **existence** for MCP is publicly acknowledged. What remains genuinely
+  undocumented is the mechanics: no `.well-known` paths, no
+  `registration_endpoint` value, nothing about the org-owner-only
+  requirement or the stale-`client_id` bug.
+- **The manual-OAuth-app fallback (draft §6.4) is also publicly confirmed**,
+  not just internal knowledge: the same MCP docs page says *"If your MCP
+  client requires an OAuth client ID and secret (e.g. Azure API Center),
+  you can manually create an OAuth app."*
+- **The Management API OAuth surface (`build-a-supabase-integration`) is a
+  different product from the MCP flow**, confirmed by direct comparison —
+  manual-only client registration (no DCR mentioned there at all), no
+  `.well-known` discovery, and zero mention of MCP. Same `authorize`/`token`
+  endpoints, otherwise a different mechanism end to end.
+- **Supabase publishes an official "Connect Supabase" button asset**
+  specifically for triggering this kind of OAuth redirect — found via
+  [brand-assets](https://supabase.com/brand-assets), hosted at
+  `https://obuldanrptloktxcffvn.supabase.co/storage/v1/object/public/supabase-brand-assets/connect-supabase/connect-supabase-dark.svg`.
+  Not previously referenced anywhere in this project; now used in the HTML
+  guide's step 4.
+
 ## Simplifications knowingly introduced in this implementation
 
 Not corrections to the draft — just choices made for a validation harness
