@@ -320,6 +320,7 @@
     <a class="nav-link" data-target="token-refresh" tabindex="0">Token refresh handling</a>
     <a class="nav-link" data-target="testing-checklist" tabindex="0">Testing checklist</a>
     <a class="nav-link" data-target="api-vs-mcp" tabindex="0">Management API vs. MCP</a>
+    <a class="nav-link" data-target="oauth-vs-pat" tabindex="0">OAuth vs. PAT</a>
   </aside>
 
   <main>
@@ -918,10 +919,8 @@ main().catch((err) => {
     </section>
 
     <section id="api-vs-mcp">
-      <h2><span class="h2-num">7</span> Management API vs. MCP, and OAuth vs. PAT</h2>
-      <p class="section-intro">How this guide's flow compares to Supabase's <a href="https://supabase.com/docs/guides/integrations/build-a-supabase-oauth-integration" target="_blank" rel="noopener">Management API OAuth integration guide</a> — a different, older surface that predates MCP.</p>
-
-      <h3 id="api-vs-mcp-data">Data access: Management API vs. MCP</h3>
+      <h2><span class="h2-num">7</span> Management API vs. MCP</h2>
+      <p class="section-intro">How this guide's flow compares to Supabase's <a href="https://supabase.com/docs/guides/integrations/build-a-supabase-oauth-integration" target="_blank" rel="noopener">Management API OAuth integration guide</a> — a different, older surface that predates MCP, covering what each is actually for and how they differ mechanically.</p>
       <table>
         <tr><th></th><th>Management API</th><th>MCP</th></tr>
         <tr><td>Use case &amp; capabilities</td><td>Provisioning and configuring orgs/projects on behalf of a user — project CRUD, API keys, auth config, and similar control-plane operations</td><td>The same account/project management tools, plus direct data-plane access — <code class="inline">execute_sql</code>, <code class="inline">list_tables</code>, <code class="inline">deploy_edge_function</code>, and more</td></tr>
@@ -930,8 +929,11 @@ main().catch((err) => {
         <tr><td>App registration</td><td>Manual only, via the org dashboard's OAuth Apps page</td><td>Dynamic by default, no manual step — but the manual app path works here too, plus PAT as a further fallback</td></tr>
         <tr><td>Scopes</td><td>Granted per-app at registration time ("write access to all available scopes")</td><td>Org-level; <code class="inline">project_ref</code>/<code class="inline">read_only</code> on the resource URL narrow what tools are usable, not confirmed to narrow what's requested at consent</td></tr>
       </table>
+    </section>
 
-      <h3 id="oauth-vs-pat">Auth method: OAuth vs. PAT</h3>
+    <section id="oauth-vs-pat">
+      <h2><span class="h2-num">8</span> OAuth vs. PAT</h2>
+      <p class="section-intro">Both show up elsewhere in this guide as ways to authenticate — this compares them directly as credential types, independent of which API they're used against.</p>
       <table>
         <tr><th></th><th>OAuth</th><th>Personal access token (PAT)</th></tr>
         <tr><td>Use case</td><td>A third-party app acting on behalf of another user, without ever seeing their credentials</td><td>Personal automation, CI environments, or an MCP client that can't do DCR or manual OAuth</td></tr>
@@ -954,6 +956,7 @@ main().catch((err) => {
     <a class="toc-link" data-target="token-refresh" tabindex="0">Token refresh handling</a>
     <a class="toc-link" data-target="testing-checklist" tabindex="0">Testing checklist</a>
     <a class="toc-link" data-target="api-vs-mcp" tabindex="0">Management API vs. MCP</a>
+    <a class="toc-link" data-target="oauth-vs-pat" tabindex="0">OAuth vs. PAT</a>
   </aside>
 
 </div>
