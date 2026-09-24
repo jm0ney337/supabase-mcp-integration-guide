@@ -924,11 +924,11 @@ main().catch((err) => {
       <h3 id="api-vs-mcp-data">Data access: Management API vs. MCP</h3>
       <table>
         <tr><th></th><th>Management API</th><th>MCP</th></tr>
-        <tr><td>Authentication (tokens)</td><td>OAuth (manual app only) or a personal access token — either way, a bearer token in the <code class="inline">Authorization</code> header</td><td>OAuth via DCR by default, or a manual app, or a personal access token — same bearer-token shape</td></tr>
-        <tr><td>Secret management</td><td><code class="inline">client_secret</code> from a manually-registered app, held by your backend</td><td><code class="inline">client_secret</code> from DCR (or a manual app), held by your backend — no public/secret-less clients supported yet</td></tr>
-        <tr><td>App registration</td><td>Manual only, via the org dashboard's OAuth Apps page</td><td>Dynamic by default, no manual step — manual app or PAT are fallbacks</td></tr>
-        <tr><td>Scopes</td><td>Granted per-app at registration time ("write access to all available scopes")</td><td>Org-level; <code class="inline">project_ref</code>/<code class="inline">read_only</code> on the resource URL narrow what tools are usable, not confirmed to narrow what's requested at consent</td></tr>
         <tr><td>Use case &amp; capabilities</td><td>Provisioning and configuring orgs/projects on behalf of a user — project CRUD, API keys, auth config, and similar control-plane operations</td><td>The same account/project management tools, plus direct data-plane access — <code class="inline">execute_sql</code>, <code class="inline">list_tables</code>, <code class="inline">deploy_edge_function</code>, and more</td></tr>
+        <tr><td>Authentication (tokens)</td><td>OAuth (manual app only) or a personal access token — either way, a bearer token in the <code class="inline">Authorization</code> header</td><td>OAuth via DCR by default, or a manual app, or a personal access token — same bearer-token shape</td></tr>
+        <tr><td>Secret management</td><td><code class="inline">client_secret</code> from a manually-registered app, held by your backend</td><td><code class="inline">client_secret</code> from either a DCR registration or a manually-registered app — same as the Management API, held by your backend either way. No public/secret-less clients supported yet.</td></tr>
+        <tr><td>App registration</td><td>Manual only, via the org dashboard's OAuth Apps page</td><td>Dynamic by default, no manual step — but the manual app path works here too, plus PAT as a further fallback</td></tr>
+        <tr><td>Scopes</td><td>Granted per-app at registration time ("write access to all available scopes")</td><td>Org-level; <code class="inline">project_ref</code>/<code class="inline">read_only</code> on the resource URL narrow what tools are usable, not confirmed to narrow what's requested at consent</td></tr>
       </table>
 
       <h3 id="oauth-vs-pat">Auth method: OAuth vs. PAT</h3>
@@ -936,7 +936,8 @@ main().catch((err) => {
         <tr><th></th><th>OAuth</th><th>Personal access token (PAT)</th></tr>
         <tr><td>Use case</td><td>A third-party app acting on behalf of another user, without ever seeing their credentials</td><td>Personal automation, CI environments, or an MCP client that can't do DCR or manual OAuth</td></tr>
         <tr><td>Tokens/credentials required</td><td><code class="inline">client_id</code> + <code class="inline">client_secret</code> at the app level, plus a user-granted access/refresh token pair</td><td>A single token tied directly to your own account, created from <a href="https://supabase.com/dashboard/account/tokens" target="_blank" rel="noopener">account settings</a></td></tr>
-        <tr><td>Anything else notable</td><td>Short-lived and meant to be scoped to one app+user grant; needs the refresh flow to stay connected</td><td>Carries the same privileges as your full user account — broad and unscoped, so treat it like a password</td></tr>
+        <tr><td>UX</td><td>Browser redirect to a consent screen; the user approves once and never handles the token directly</td><td>The user copies a token out of their account settings and pastes it into the client's config themselves — no consent screen, no redirect</td></tr>
+        <tr><td>Token lifetime &amp; scope breadth</td><td>Short-lived and meant to be scoped to one app+user grant; needs the refresh flow to stay connected</td><td>Carries the same privileges as your full user account — broad and unscoped, so treat it like a password</td></tr>
       </table>
     </section>
 
