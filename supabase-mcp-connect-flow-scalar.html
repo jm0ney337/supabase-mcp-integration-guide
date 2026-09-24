@@ -300,7 +300,6 @@
     <div class="nav-label">Partner Integrations</div>
     <a class="nav-link active" data-target="overview" tabindex="0">MCP client connect flow</a>
     <a class="nav-link" data-target="connection-requirements" tabindex="0">Connection requirements</a>
-    <a class="nav-link" data-target="known-constraints" tabindex="0">Known constraints</a>
     <a class="nav-link" data-target="prerequisites" tabindex="0">Prerequisites</a>
 
     <div class="nav-label">Step-by-step</div>
@@ -322,14 +321,10 @@
   <main>
 
     <section id="overview">
-      <div class="status-row">
-        <span class="pill pill-draft">Draft</span>
-        <span class="pill pill-updated">Internal · not yet published</span>
-      </div>
       <h1>Supabase MCP client connect flow</h1>
       <p class="lede">How to build an OAuth client for the hosted Supabase MCP server — for partners embedding Supabase as a native connection inside their own AI builder platform, worked end to end with the Claude Agent SDK.</p>
       <div class="meta-line">
-        Sourced from <code>Linear</code> and <code>#team-ai</code> / <code>#initiative-security-scoped-tokens-for-select-conf</code> on Slack · last verified Sept 2026
+        Last verified Sept 2026
       </div>
 
       <div class="callout callout-note">
@@ -343,110 +338,16 @@
       <table>
         <tr><th>Endpoint</th><th>Value</th><th>Source</th></tr>
         <tr><td>MCP server</td><td><code>https://mcp.supabase.com/mcp</code></td><td>Existing docs</td></tr>
-        <tr><td>Local dev</td><td><code>http://localhost:54321/mcp</code></td><td>No OAuth today — see §6</td></tr>
-        <tr><td>Authorize</td><td><code>api.supabase.com/v1/oauth/authorize</code></td><td>Linear AI-767 · matches Supabase's public OAuth integration guide</td></tr>
-        <tr><td>Token</td><td><code>api.supabase.com/v1/oauth/token</code></td><td>Linear AI-767 · matches Supabase's public OAuth integration guide</td></tr>
-        <tr><td>Discovery + registration</td><td><em>discovered at runtime, not a fixed path</em></td><td>Not published by Supabase — see note below</td></tr>
+        <tr><td>Local dev</td><td><code>http://localhost:54321/mcp</code></td><td>No OAuth today — see §5</td></tr>
+        <tr><td>Authorize</td><td><code>api.supabase.com/v1/oauth/authorize</code></td><td>Matches Supabase's public OAuth integration guide</td></tr>
+        <tr><td>Token</td><td><code>api.supabase.com/v1/oauth/token</code></td><td>Matches Supabase's public OAuth integration guide</td></tr>
+        <tr><td>Discovery + registration</td><td><em>discovered at runtime, not a fixed path</em></td><td>Per RFC 9728 / RFC 8414</td></tr>
       </table>
-      <div class="callout callout-flux">
-        <span class="callout-label">Not officially documented — Sept 2026</span>
-        <p>Only <code class="inline">authorize</code> and <code class="inline">token</code> above are public: they match Supabase's own <a href="https://supabase.com/docs/guides/integrations/build-a-supabase-oauth-integration" target="_blank" rel="noopener">published OAuth integration guide</a>, which is a <strong>different, manually-registered</strong> OAuth surface for Management API access — it never mentions MCP and has no dynamic client registration at all.</p>
-        <p>The protected-resource metadata, authorization-server metadata, and DCR <code class="inline">registration_endpoint</code> that make this guide's MCP flow work are <strong>not published anywhere by Supabase</strong>. We confirmed them live during testing (Sept 2026), sourced only from internal Slack/Linear threads otherwise. Deliberately, this guide doesn't list their literal paths as if they were stable API — step 1's code discovers all of it at runtime, per the standard OAuth conventions (RFC 9728 for protected-resource metadata, RFC 8414 for authorization-server metadata), and step 3 reads <code class="inline">registration_endpoint</code> from that response rather than hardcoding it. Treat the exact paths as liable to change without notice; treat the discovery <em>mechanism</em> as the stable part.</p>
-      </div>
       <p>Scoping query params (<code class="inline">project_ref</code>, <code class="inline">read_only</code>, <code class="inline">features</code>) live on the <strong>resource URL</strong>, not as OAuth scopes. Whatever you append to the MCP URL is reflected into the discovery call and into the <code class="inline">resource</code> parameter sent to the authorize and token endpoints.</p>
-      <div class="callout callout-flux">
-        <span class="callout-label">In flux</span>
-        <p>The resulting access token is scoped to the <em>organization</em> at the OAuth level. <code class="inline">project_ref</code> in the URL does not cryptographically bind the token to that project — don't treat it as a hard security boundary yet.</p>
-      </div>
-    </section>
-
-    <section id="known-constraints">
-      <h2><span class="h2-num">2</span> Known constraints to design around</h2>
-      <p class="section-intro">Real, currently-open issues. Build defensively around these rather than assuming spec-clean behavior.</p>
-
-      <ol class="constraint-list">
-        <li>
-          <span class="constraint-num">1</span>
-          <div class="constraint-body">
-            <span class="constraint-title">DCR registrations can go stale server-side, permanently</span>
-            <p>Once this happens, every retry with the cached <code class="inline">client_id</code> gets <code class="inline">{"message":"Unrecognized client_id"}</code> (HTTP 422) forever — it does not self-heal. Reported across Cursor, VS Code, and Claude.</p>
-            <div class="callout callout-implication">
-              <span class="callout-label">Design implication</span>
-              <p>Detect this exact error shape and re-run DCR from scratch rather than retrying the same registration.</p>
-            </div>
-          </div>
-        </li>
-        <li>
-          <span class="constraint-num">2</span>
-          <div class="constraint-body">
-            <span class="constraint-title">Only org owners/admins can complete the OAuth handshake</span>
-            <p>Non-admin roles get a 403 at authorize time. This isn't a grantable permission — it's a hard requirement of the current flow.</p>
-            <div class="callout callout-implication">
-              <span class="callout-label">Design implication</span>
-              <p>Surface this requirement in your UI before starting the flow, not after a confusing 403.</p>
-            </div>
-          </div>
-        </li>
-        <li>
-          <span class="constraint-num">3</span>
-          <div class="constraint-body">
-            <span class="constraint-title">A granted connection doesn't shrink if the role is downgraded</span>
-            <p>The grant is tied to the org, not the member's current role, and there's no recheck after the fact.</p>
-            <div class="callout callout-implication">
-              <span class="callout-label">Design implication</span>
-              <p>Don't rely on Supabase-side role changes to revoke access on your end.</p>
-            </div>
-          </div>
-        </li>
-        <li>
-          <span class="constraint-num">4</span>
-          <div class="constraint-body">
-            <span class="constraint-title">One organization per connection</span>
-            <p>A user with access to multiple orgs picks one at authorize time — there's no way to authorize all of them in one grant.</p>
-            <div class="callout callout-implication">
-              <span class="callout-label">Design implication</span>
-              <p>Plan for multiple separate connections if your end users commonly work across orgs.</p>
-            </div>
-          </div>
-        </li>
-        <li>
-          <span class="constraint-num">5</span>
-          <div class="constraint-body">
-            <span class="constraint-title">The consent screen asks for full access, regardless of scoping params</span>
-            <p><code class="inline">features=</code> / <code class="inline">read_only=</code> change what's usable, not what's requested at consent.</p>
-            <div class="callout callout-flux">
-              <span class="callout-label">In flux</span>
-              <p>Being actively redesigned — re-verify close to publishing, it may have shipped by then.</p>
-            </div>
-          </div>
-        </li>
-        <li>
-          <span class="constraint-num">6</span>
-          <div class="constraint-body">
-            <span class="constraint-title">Permission errors are moving to tool-result errors, not OAuth exceptions</span>
-            <p>The emerging pattern returns a normal tool result with <code class="inline">isError: true</code> rather than throwing at the OAuth/403 layer.</p>
-            <div class="callout callout-implication">
-              <span class="callout-label">Design implication</span>
-              <p>Check <code class="inline">isError</code> on tool results — don't build error handling around catching an OAuth exception alone.</p>
-            </div>
-          </div>
-        </li>
-        <li>
-          <span class="constraint-num">7</span>
-          <div class="constraint-body">
-            <span class="constraint-title">Confidential clients only, for now</span>
-            <p>Supabase does not currently register public (secret-less) OAuth clients for MCP.</p>
-            <div class="callout callout-implication">
-              <span class="callout-label">Design implication</span>
-              <p>If your client is fully client-side, confirm you can actually hold the returned <code class="inline">client_secret</code>, or use a thin backend.</p>
-            </div>
-          </div>
-        </li>
-      </ol>
     </section>
 
     <section id="prerequisites">
-      <h2><span class="h2-num">3</span> Prerequisites</h2>
+      <h2><span class="h2-num">2</span> Prerequisites</h2>
 
       <div class="code-block">
         <div class="code-block-header">
@@ -467,7 +368,7 @@ npm install express          # for the local OAuth redirect handler in this exam
     </section>
 
     <section id="step-by-step">
-      <h2><span class="h2-num">4</span> Step-by-step</h2>
+      <h2><span class="h2-num">3</span> Step-by-step</h2>
 
       <h3 id="sequence-overview">Full sequence diagram</h3>
       <p class="tight text-mid">Every message below, end to end — discovery, PKCE, dynamic client registration, the browser-mediated authorize step, token exchange, and the eventual MCP tool call — mapped onto the concrete endpoints and field names used in steps 1–7. Steps <code class="inline">0f</code>/<code class="inline">0g</code> only happen once; every connection after the first finds a cached <code class="inline">client_id</code> and skips straight to step 1.</p>
@@ -633,7 +534,7 @@ function generateCodeChallenge(verifier: string): string {
       </div>
 
       <h3 id="step-3"><span class="step-tag">03</span>Dynamic client registration</h3>
-      <p class="tight text-mid">This step needs to be defensive against the stale-<code class="inline">client_id</code> bug (constraint #1). Persist credentials, and on a confirmed failure later in the flow, wipe the stored registration and register fresh.</p>
+      <p class="tight text-mid">This step needs to be defensive against a known stale-<code class="inline">client_id</code> bug. Persist credentials, and on a confirmed failure later in the flow, wipe the stored registration and register fresh.</p>
       <div class="code-block">
         <div class="code-block-header"><span class="filename">register.ts</span><span class="lang">typescript</span></div>
         <script type="text/plain" class="code-src" data-lang="typescript">import { writeFileSync, readFileSync, existsSync } from "fs"
@@ -714,7 +615,7 @@ async function getOrRegisterClient(
 }</script>
         <pre><code></code></pre>
       </div>
-      <p class="tight text-mid">Remember constraint #2: the user completing this flow must be an org owner/admin, or they'll hit a 403 here.</p>
+      <p class="tight text-mid">The user completing this flow must be an org owner/admin, or they'll hit a 403 here.</p>
 
       <h3 id="step-5"><span class="step-tag">05</span>Local callback listener</h3>
       <p class="tight text-mid">For a CLI/script test harness, a minimal Express listener is enough. A production integration would do this server-side instead.</p>
@@ -778,8 +679,8 @@ async function exchangeCodeForTokens(
 
   if (!res.ok) {
     const body = await res.text()
-    // Constraint #1 — detect the stale-client_id bug specifically so the
-    // caller can re-register instead of retrying uselessly.
+    // Detect the stale-client_id bug specifically so the caller can
+    // re-register instead of retrying uselessly.
     if (body.includes("Unrecognized client_id")) {
       throw new Error("STALE_CLIENT_ID")
     }
@@ -795,7 +696,7 @@ async function exchangeCodeForTokens(
       <p class="tight text-mid">Once you have an access token, hand it to the SDK as a bearer header on an <code class="inline">http</code>-type MCP server. This is the only integration point between the OAuth code above and the SDK.</p>
       <div class="callout callout-flux">
         <span class="callout-label">Corrected — Sept 2026</span>
-        <p>The original version of this code checked <code class="inline">message.type === "tool_result"</code>. That message type doesn't exist in the current Agent SDK — tool results arrive as content blocks inside a <code class="inline">user</code>-role message, not as their own top-level message. There's also a second failure mode constraint #6 didn't cover: if a server's token is rejected at <em>connection</em> time rather than per call, the SDK reports <code class="inline">needs-auth</code> in the <code class="inline">system</code>/<code class="inline">init</code> message's <code class="inline">mcp_servers[]</code> array, and the run continues <strong>silently</strong> without that server's tools — no exception, no <code class="inline">isError</code>. Checking <code class="inline">isError</code> alone won't catch it; the code below now checks both.</p>
+        <p>The original version of this code checked <code class="inline">message.type === "tool_result"</code>. That message type doesn't exist in the current Agent SDK — tool results arrive as content blocks inside a <code class="inline">user</code>-role message, not as their own top-level message. There's also a second failure mode worth watching for separately: if a server's token is rejected at <em>connection</em> time rather than per call, the SDK reports <code class="inline">needs-auth</code> in the <code class="inline">system</code>/<code class="inline">init</code> message's <code class="inline">mcp_servers[]</code> array, and the run continues <strong>silently</strong> without that server's tools — no exception, no <code class="inline">isError</code>. Checking <code class="inline">isError</code> alone won't catch it; the code below now checks both.</p>
       </div>
       <div class="code-block">
         <div class="code-block-header"><span class="filename">run-agent.ts</span><span class="lang">typescript</span></div>
@@ -817,9 +718,9 @@ async function runAgentWithSupabaseMcp(accessToken: string, mcpUrl: string) {
     prompt: "List the tables in this Supabase project.",
     options,
   })) {
-    // Constraint #6, extended — a server whose token is rejected reports
-    // needs-auth here and the run continues without its tools. No
-    // exception, no isError. Catch it at the source, not just downstream.
+    // A server whose token is rejected reports needs-auth here and the
+    // run continues without its tools. No exception, no isError. Catch
+    // it at the source, not just downstream.
     if (message.type === "system" && message.subtype === "init") {
       const unusable = message.mcp_servers.filter(
         (s) => s.status === "failed" || s.status === "needs-auth"
@@ -849,7 +750,7 @@ async function runAgentWithSupabaseMcp(accessToken: string, mcpUrl: string) {
     </section>
 
     <section id="full-script">
-      <h2><span class="h2-num">5</span> Full connect script</h2>
+      <h2><span class="h2-num">4</span> Full connect script</h2>
       <p class="section-intro">Assembles every step above into one runnable file, with the stale-client_id recovery path wired in.</p>
       <div class="code-block">
         <div class="code-block-header"><span class="filename">connect-supabase-mcp.ts</span><span class="lang">typescript</span></div>
@@ -899,8 +800,8 @@ async function main() {
     )
   } catch (err) {
     if (err instanceof Error && err.message === "STALE_CLIENT_ID") {
-      // Constraint #1 — known bug. Force a fresh registration and tell the
-      // user to re-run rather than looping silently.
+      // Known bug. Force a fresh registration and tell the user to
+      // re-run rather than looping silently.
       console.warn("Registered client_id was rejected as unrecognized (known Supabase MCP issue).")
       console.warn("Re-registering a fresh client. Please re-run this script.")
       await registerClient(metadata, REDIRECT_URI)
@@ -922,7 +823,7 @@ main().catch((err) => {
     </section>
 
     <section id="token-refresh">
-      <h2><span class="h2-num">6</span> Token refresh handling</h2>
+      <h2><span class="h2-num">5</span> Token refresh handling</h2>
       <p class="section-intro">Three distinct failure modes, three different fixes — don't lump them into one retry-and-hope handler.</p>
 
       <h3 id="basic-mechanics">Basic mechanics</h3>
@@ -967,7 +868,7 @@ main().catch((err) => {
       </div>
 
       <h3 id="failure-mode-2">Failure mode 2 — the client_id reaping mechanism</h3>
-      <p>This is the "Unrecognized client_id" bug from §2, now root-caused:</p>
+      <p>This is the "Unrecognized client_id" bug, now root-caused:</p>
       <ul class="plain">
         <li>A <strong>15-minute cron</strong> deletes DCR registrations that were <strong>never approved</strong> — abandoned mid-consent, or the user never finished the browser flow.</li>
         <li><strong>Revoking</strong> a connection deletes the row that shields an approved client from that same reaper. A client that registers, consents, mints a token, and is revoked within roughly an hour can fall back into the reap window.</li>
@@ -1001,7 +902,7 @@ main().catch((err) => {
     </section>
 
     <section id="testing-checklist">
-      <h2><span class="h2-num">7</span> Testing checklist</h2>
+      <h2><span class="h2-num">6</span> Testing checklist</h2>
       <p class="section-intro">What to verify when running the full script above end to end.</p>
       <ol class="checklist">
         <li><span class="check-num">1</span><span>Discovery resolves both metadata documents without manual URL guessing.</span></li>
@@ -1019,7 +920,6 @@ main().catch((err) => {
     <div class="toc-title">On this page</div>
     <a class="toc-link" data-target="overview" tabindex="0">Overview</a>
     <a class="toc-link" data-target="connection-requirements" tabindex="0">Connection requirements</a>
-    <a class="toc-link" data-target="known-constraints" tabindex="0">Known constraints</a>
     <a class="toc-link" data-target="prerequisites" tabindex="0">Prerequisites</a>
     <a class="toc-link" data-target="step-by-step" tabindex="0">Step-by-step</a>
     <a class="toc-link" data-target="sequence-overview" tabindex="0">Full sequence diagram</a>
