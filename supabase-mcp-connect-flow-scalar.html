@@ -350,6 +350,10 @@
         <tr><td>Token</td><td><code>api.supabase.com/v1/oauth/token</code></td><td>Linear AI-767</td></tr>
         <tr><td>Dynamic Client Registration</td><td><code>api.supabase.com/v1/oauth/register</code></td><td>Linear AI-767</td></tr>
       </table>
+      <div class="callout callout-flux">
+        <span class="callout-label">Confirmed stale — Sept 2026</span>
+        <p>Live discovery returns a different <code class="inline">registration_endpoint</code>: <code class="inline">api.supabase.com/platform/oauth/apps/register</code>, not the <code class="inline">v1/oauth/register</code> path above. The code in step 3 is unaffected — it reads this value from the discovery response rather than hardcoding it — but this reference table itself is wrong.</p>
+      </div>
       <p>Scoping query params (<code class="inline">project_ref</code>, <code class="inline">read_only</code>, <code class="inline">features</code>) live on the <strong>resource URL</strong>, not as OAuth scopes. Whatever you append to the MCP URL is reflected into the discovery call and into the <code class="inline">resource</code> parameter sent to the authorize and token endpoints.</p>
       <div class="callout callout-flux">
         <span class="callout-label">In flux</span>
@@ -458,8 +462,8 @@ npm install express          # for the local OAuth redirect handler in this exam
       <p>The Claude Agent SDK <strong>does not perform the OAuth flow for you</strong>. It only accepts a bearer token via <code class="inline">headers</code> on an <code class="inline">http</code>-type MCP server config. You run discovery → PKCE → DCR → authorize → token exchange yourself, then hand the SDK the finished access token.</p>
 
       <div class="callout callout-note">
-        <span class="callout-label">Known SDK issue</span>
-        <p><code class="inline">claude-agent-sdk-typescript</code> issue #202 reports HTTP-transport MCP connections failing with 406 on some versions (<code class="inline">0.2.52</code>). If tool calls fail with a 406 during testing, check the installed SDK version before assuming the OAuth code below is wrong.</p>
+        <span class="callout-label">Known SDK issue — confirmed closed, Sept 2026</span>
+        <p><code class="inline">claude-agent-sdk-typescript</code> issue #202 reports HTTP-transport MCP connections failing with 406 on some versions (<code class="inline">0.2.52</code>). The issue is real and is now <strong>closed</strong>; the current SDK is at <code class="inline">0.3.277</code>, far past the version that reproduced it, so the risk of hitting this today is low. "Closed" isn't the same as "verified fixed at whatever version you install," though — if tool calls fail with a 406 during testing, still check the installed SDK version before assuming the OAuth code below is wrong.</p>
       </div>
     </section>
 
@@ -788,6 +792,10 @@ async function exchangeCodeForTokens(
 
       <h3 id="step-7"><span class="step-tag">07</span>Connect with the Claude Agent SDK</h3>
       <p class="tight text-mid">Once you have an access token, hand it to the SDK as a bearer header on an <code class="inline">http</code>-type MCP server. This is the only integration point between the OAuth code above and the SDK.</p>
+      <div class="callout callout-flux">
+        <span class="callout-label">Corrected — Sept 2026</span>
+        <p>The original version of this code checked <code class="inline">message.type === "tool_result"</code>. That message type doesn't exist in the current Agent SDK — tool results arrive as content blocks inside a <code class="inline">user</code>-role message, not as their own top-level message. There's also a second failure mode constraint #6 didn't cover: if a server's token is rejected at <em>connection</em> time rather than per call, the SDK reports <code class="inline">needs-auth</code> in the <code class="inline">system</code>/<code class="inline">init</code> message's <code class="inline">mcp_servers[]</code> array, and the run continues <strong>silently</strong> without that server's tools — no exception, no <code class="inline">isError</code>. Checking <code class="inline">isError</code> alone won't catch it; the code below now checks both.</p>
+      </div>
       <div class="code-block">
         <div class="code-block-header"><span class="filename">run-agent.ts</span><span class="lang">typescript</span></div>
         <script type="text/plain" class="code-src" data-lang="typescript">import { query, type Options } from "@anthropic-ai/claude-agent-sdk"
@@ -808,13 +816,30 @@ async function runAgentWithSupabaseMcp(accessToken: string, mcpUrl: string) {
     prompt: "List the tables in this Supabase project.",
     options,
   })) {
+    // Constraint #6, extended — a server whose token is rejected reports
+    // needs-auth here and the run continues without its tools. No
+    // exception, no isError. Catch it at the source, not just downstream.
+    if (message.type === "system" && message.subtype === "init") {
+      const unusable = message.mcp_servers.filter(
+        (s) => s.status === "failed" || s.status === "needs-auth"
+      )
+      if (unusable.length > 0) {
+        console.warn("MCP server(s) not usable:", unusable)
+      }
+    }
+
+    // Tool results are content blocks inside a "user" message, not a
+    // top-level "tool_result" message type.
+    if (message.type === "user" && Array.isArray(message.message.content)) {
+      for (const block of message.message.content) {
+        if (block.type === "tool_result" && block.is_error) {
+          console.warn("Tool call returned an error result:", block)
+        }
+      }
+    }
+
     if (message.type === "result" && message.subtype === "success") {
       console.log(message.result)
-    }
-    // Constraint #6 — permission errors may come back as a normal tool
-    // result with isError: true rather than an exception.
-    if (message.type === "tool_result" && (message as any).isError) {
-      console.warn("Tool call returned an error result:", message)
     }
   }
 }</script>
@@ -960,11 +985,17 @@ main().catch((err) => {
         <p><code class="inline">claude mcp logout supabase</code> then <code class="inline">claude mcp login supabase</code>. <code class="inline">login</code> alone is not enough — it preserves the existing registration when the redirect URI/port haven't changed, which just reproduces the failure.</p>
       </div>
 
+      <div class="callout callout-implication">
+        <span class="callout-label">Confirmed — Sept 2026, dashboard inspection</span>
+        <p>A DCR-registered client shows up in the org's Supabase dashboard under <strong>Authorized apps</strong> (a per-org list of grants), never under any "Published OAuth Apps" list — because registration happened with no authenticated Supabase session attached at all. There is no confirmed self-service way to delete the underlying <code class="inline">client_id</code> from a dashboard. The only two levers a partner actually has are the reaper cron above (automatic, targets abandoned or revoked-then-idle registrations, not on-demand) and <code class="inline">POST /v1/oauth/revoke</code> (kills a token, not the registration itself). This matters at partner scale specifically because every customer's authorization shares the one <code class="inline">client_id</code> your backend registered once — the reaper hitting it is a single point of failure for every connected customer at once, not a per-customer risk.</p>
+      </div>
+
       <h3 id="unconfirmed">What's still unconfirmed</h3>
       <ul class="plain">
         <li><strong>Refresh token lifetime.</strong> No documented number for this OAuth 2.1 server — test empirically rather than assuming an idle-timeout pattern.</li>
         <li><strong>CIMD as a longer-term fix.</strong> Would remove the reaping problem entirely by making the client_id a URL instead of a stored row. Client support today is partial; Supabase's own attempt was blocked over an SSRF concern.</li>
         <li><strong>Local/self-hosted OAuth.</strong> Doesn't exist yet — local MCP is open by default. A resource-server implementation is in early POC.</li>
+        <li><strong>A <code class="inline">jwt-bearer</code> grant path.</strong> Live discovery lists <code class="inline">urn:ietf:params:oauth:grant-type:jwt-bearer</code> and an <code class="inline">urn:ietf:params:oauth:grant-profile:id-jag</code> profile in <code class="inline">grant_types_supported</code> — a mechanism for getting a token from a pre-trusted JWT assertion without the interactive browser step. Not documented anywhere, not exercised by this guide's flow, and we don't know what assertion format or trust source it expects.</li>
       </ul>
     </section>
 
