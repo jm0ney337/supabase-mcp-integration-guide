@@ -40,6 +40,8 @@
     -webkit-font-smoothing:antialiased;
   }
   a{color:inherit;text-decoration:none;}
+  p a, li a, td a, .callout p a{color:var(--accent);text-decoration:underline;text-underline-offset:2px;}
+  p a:hover, li a:hover, td a:hover, .callout p a:hover{color:var(--accent-dim);}
   code, pre, .mono{font-family:'JetBrains Mono',ui-monospace,monospace;}
 
   /* ---------- Top bar ---------- */
@@ -713,22 +715,7 @@ async function exchangeCodeForTokens(
 
       <h3 id="step-7"><span class="step-tag">07</span>Connect with the Claude Agent SDK</h3>
       <p class="tight text-mid">Once you have an access token, hand it to the SDK as a bearer header on an <code class="inline">http</code>-type MCP server. This is the only integration point between the OAuth code above and the SDK. Check both the <code class="inline">init</code> message's server status and each tool result's <code class="inline">isError</code> flag — a rejected server can fail silently at the connection level without ever throwing or returning an error result.</p>
-      <div class="callout callout-note">
-        <span class="callout-label">What's actually behind <code class="inline">mcp__supabase__*</code></span>
-        <p>The wildcard below grants every tool the server exposes. The full, current list lives in <a href="https://supabase.com/docs/guides/ai-tools/mcp" target="_blank" rel="noopener">Supabase's MCP documentation</a> — as of writing, that's:</p>
-        <table>
-          <tr><th>Category</th><th>Tools</th></tr>
-          <tr><td>Database</td><td><code>list_tables</code>, <code>list_extensions</code>, <code>list_migrations</code>, <code>apply_migration</code>, <code>execute_sql</code></td></tr>
-          <tr><td>Debugging</td><td><code>query_logs</code>, <code>get_advisors</code></td></tr>
-          <tr><td>Development</td><td><code>get_project_url</code>, <code>get_publishable_keys</code>, <code>generate_typescript_types</code></td></tr>
-          <tr><td>Edge functions</td><td><code>list_edge_functions</code>, <code>get_edge_function</code>, <code>deploy_edge_function</code></td></tr>
-          <tr><td>Account management</td><td><code>list_projects</code>, <code>get_project</code>, <code>create_project</code>, <code>pause_project</code>, <code>restore_project</code>, <code>list_organizations</code>, <code>get_organization</code>, <code>get_cost</code>, <code>confirm_cost</code></td></tr>
-          <tr><td>Branching</td><td><code>create_branch</code>, <code>list_branches</code>, <code>delete_branch</code>, <code>merge_branch</code>, <code>reset_branch</code>, <code>rebase_branch</code></td></tr>
-          <tr><td>Storage</td><td><code>list_storage_buckets</code>, <code>get_storage_config</code>, <code>update_storage_config</code></td></tr>
-          <tr><td>Docs</td><td><code>search_docs</code></td></tr>
-        </table>
-        <p>Narrow <code class="inline">allowedTools</code> to just what your integration needs rather than shipping the wildcard — pair it with <code class="inline">read_only=true</code> on the MCP URL if your use case is read-only.</p>
-      </div>
+      <p class="tight text-mid">You can view a full list of the MCP server's tools and capabilities <a href="https://supabase.com/docs/guides/ai-tools/mcp" target="_blank" rel="noopener">here</a>.</p>
       <div class="code-block">
         <div class="code-block-header"><span class="filename">run-agent.ts</span><span class="lang">typescript</span></div>
         <script type="text/plain" class="code-src" data-lang="typescript">import { query, type Options } from "@anthropic-ai/claude-agent-sdk"
