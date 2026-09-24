@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Supabase MCP Client Connect Flow · Docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #171717;
+    --bg-raised: #1c1c1c;
+    --bg-code: #121212;
+    --bg-hover: #232323;
+    --border: #2a2a2a;
+    --border-soft: #222;
+    --text: #edeced;
+    --text-mid: #a3a3a3;
+    --text-dim: #6b6b6b;
+    --accent: #3ecf8e;
+    --accent-soft: rgba(62,207,142,.12);
+    --accent-dim: #2a9d6d;
+    --amber: #e2a53a;
+    --amber-soft: rgba(226,165,58,.10);
+    --red: #e5686b;
+    --red-soft: rgba(229,104,107,.10);
+    --radius: 6px;
+    --sidebar-w: 272px;
+    --toc-w: 224px;
+    --header-h: 56px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    font-size:15px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  code, pre, .mono{font-family:'JetBrains Mono',ui-monospace,monospace;}
+
+  /* ---------- Top bar ---------- */
+  header.topbar{
+    position:fixed; top:0; left:0; right:0; height:var(--header-h);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 20px;
+    background:rgba(23,23,23,.92);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--border);
+    z-index:50;
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px; letter-spacing:-.01em;}
+  .brand svg{display:block;}
+  .brand .divider{width:1px; height:18px; background:var(--border); margin:0 6px;}
+  .brand .product{color:var(--text-mid); font-weight:500;}
+  nav.toplinks{display:flex; align-items:center; gap:24px; font-size:13.5px; color:var(--text-mid);}
+  nav.toplinks a.active{color:var(--text);}
+  nav.toplinks a:hover{color:var(--text);}
+  .search-pill{
+    display:flex; align-items:center; gap:8px;
+    border:1px solid var(--border); border-radius:8px;
+    padding:6px 10px; font-size:13px; color:var(--text-dim);
+    background:var(--bg-raised);
+  }
+  .search-pill kbd{
+    font-family:inherit; font-size:11px; border:1px solid var(--border);
+    border-radius:4px; padding:1px 5px; color:var(--text-dim);
+  }
+  .menu-toggle{
+    display:none; background:none; border:1px solid var(--border); border-radius:6px;
+    color:var(--text-mid); width:32px; height:32px; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+
+  /* ---------- Layout ---------- */
+  .shell{
+    display:grid;
+    grid-template-columns: var(--sidebar-w) minmax(0,1fr) var(--toc-w);
+    max-width:1360px;
+    margin:0 auto;
+    padding-top:var(--header-h);
+  }
+  aside.sidebar{
+    position:sticky; top:var(--header-h);
+    align-self:start;
+    height:calc(100vh - var(--header-h));
+    overflow-y:auto;
+    padding:28px 16px 60px 20px;
+    border-right:1px solid var(--border-soft);
+  }
+  aside.toc{
+    position:sticky; top:var(--header-h);
+    align-self:start;
+    height:calc(100vh - var(--header-h));
+    overflow-y:auto;
+    padding:28px 20px 60px 20px;
+    border-left:1px solid var(--border-soft);
+  }
+  main{
+    padding:40px 48px 100px 48px;
+    min-width:0;
+  }
+
+  /* ---------- Sidebar nav ---------- */
+  .nav-label{
+    font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--text-dim); margin:22px 0 8px 10px;
+  }
+  .nav-label:first-child{margin-top:0;}
+  .nav-link{
+    display:block; padding:6px 10px; border-radius:6px; font-size:13.5px;
+    color:var(--text-mid); margin-bottom:1px; cursor:pointer;
+  }
+  .nav-link:focus-visible, .toc-link:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  .nav-link:hover{background:var(--bg-hover); color:var(--text);}
+  .nav-link.active{background:var(--accent-soft); color:var(--accent); font-weight:500;}
+  .nav-sub .nav-link{padding-left:22px; font-size:13px;}
+  .nav-sub{margin-bottom:2px;}
+
+  /* ---------- TOC ---------- */
+  .toc-title{font-size:12px; font-weight:600; color:var(--text-dim); margin-bottom:12px; letter-spacing:.02em;}
+  .toc-link{display:block; padding:4px 0; font-size:13px; color:var(--text-mid); border-left:2px solid transparent; padding-left:12px; margin-left:-1px; cursor:pointer;}
+  .toc-link:hover{color:var(--text);}
+  .toc-link.active{color:var(--accent); border-left-color:var(--accent);}
+
+  /* ---------- Content ---------- */
+  .status-row{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; padding:3px 9px; border-radius:20px;
+  }
+  .pill-draft{background:var(--amber-soft); color:var(--amber);}
+  .pill-draft::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--amber);}
+  .pill-updated{color:var(--text-dim); font-weight:400;}
+
+  h1{font-size:32px; font-weight:700; letter-spacing:-.02em; margin:0 0 12px 0;}
+  .lede{font-size:16.5px; color:var(--text-mid); max-width:640px; margin-bottom:8px;}
+  .meta-line{font-size:13px; color:var(--text-dim); margin-bottom:36px;}
+  .meta-line code{background:var(--bg-raised); padding:2px 6px; border-radius:4px; font-size:12px;}
+
+  section{margin-bottom:56px; scroll-margin-top:76px;}
+  section h2{
+    font-size:22px; font-weight:700; letter-spacing:-.01em;
+    padding-top:8px; margin:0 0 6px 0; scroll-margin-top:76px;
+    display:flex; align-items:center; gap:10px;
+  }
+  section h2 .h2-num{
+    font-size:13px; color:var(--accent); background:var(--accent-soft);
+    width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center;
+    font-weight:700; flex:none;
+  }
+  section > p.section-intro{color:var(--text-mid); margin:6px 0 22px 0; max-width:680px;}
+  h3{font-size:17px; font-weight:600; margin:32px 0 10px 0; scroll-margin-top:76px;}
+  h3 .step-tag{color:var(--accent); font-weight:700; margin-right:8px;}
+  p{margin:0 0 16px 0; color:var(--text); max-width:680px;}
+  p.tight{margin-bottom:10px;}
+  strong{color:var(--text); font-weight:600;}
+  .text-mid{color:var(--text-mid);}
+
+  ol.constraint-list{list-style:none; padding:0; margin:0;}
+  ol.constraint-list > li{
+    display:flex; gap:14px; padding:16px 0; border-top:1px solid var(--border-soft);
+  }
+  ol.constraint-list > li:first-child{border-top:none;}
+  .constraint-num{
+    flex:none; width:26px; height:26px; border-radius:7px; background:var(--bg-raised);
+    border:1px solid var(--border); display:flex; align-items:center; justify-content:center;
+    font-size:12.5px; font-weight:700; color:var(--text-mid); margin-top:1px;
+  }
+  .constraint-body p{max-width:none;}
+  .constraint-title{font-weight:600; color:var(--text); margin-bottom:4px; display:block;}
+
+  /* Tables */
+  table{width:100%; border-collapse:collapse; margin:12px 0 24px 0; font-size:13.5px;}
+  th{
+    text-align:left; padding:9px 12px; color:var(--text-dim); font-weight:600;
+    border-bottom:1px solid var(--border); font-size:12px; text-transform:uppercase; letter-spacing:.03em;
+  }
+  td{padding:10px 12px; border-bottom:1px solid var(--border-soft); vertical-align:top; color:var(--text-mid);}
+  td:first-child{color:var(--text); font-weight:500;}
+  td code, th code{background:var(--bg-raised); padding:2px 6px; border-radius:4px; font-size:12.5px; color:var(--accent);}
+
+  /* Callouts */
+  .callout{
+    border-radius:var(--radius); padding:14px 16px; margin:18px 0; font-size:14px;
+    border-left:3px solid var(--border);
+    background:var(--bg-raised);
+  }
+  .callout-label{
+    display:block; font-size:11.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.04em; margin-bottom:6px;
+  }
+  .callout p{margin-bottom:0; max-width:none; color:var(--text-mid);}
+  .callout p + p{margin-top:8px;}
+  .callout-implication{border-left-color:var(--accent); background:var(--accent-soft);}
+  .callout-implication .callout-label{color:var(--accent);}
+  .callout-flux{border-left-color:var(--amber); background:var(--amber-soft);}
+  .callout-flux .callout-label{color:var(--amber);}
+  .callout-note{border-left-color:var(--text-dim);}
+  .callout-note .callout-label{color:var(--text-mid);}
+  .callout-source{border:none; background:none; padding:0 0 0 2px; margin:8px 0 0 0; font-size:12.5px; color:var(--text-dim);}
+
+  /* Code blocks */
+  .code-block{
+    background:var(--bg-code); border:1px solid var(--border); border-radius:var(--radius);
+    margin:14px 0 22px 0; overflow:hidden;
+  }
+  .code-block-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 14px; border-bottom:1px solid var(--border); background:var(--bg-raised);
+  }
+  .code-block-header .filename{font-size:12.5px; color:var(--text-mid); font-family:'JetBrains Mono',monospace;}
+  .code-block-header .lang{font-size:11px; color:var(--accent); font-weight:600; text-transform:uppercase; letter-spacing:.03em;}
+  .code-block-header .copy-btn{
+    display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-dim);
+    background:none; border:none; cursor:pointer;
+  }
+  .code-block-header .copy-btn:hover{color:var(--text);}
+  pre{margin:0; padding:16px 18px; overflow-x:auto; font-size:13px; line-height:1.7;}
+  pre code{white-space:pre; color:#d8d8d8;}
+  .tok-comment{color:#6b7280; font-style:italic;}
+  .tok-string{color:#8fd6b4;}
+  .tok-keyword{color:#f5a3c7;}
+  .tok-number{color:#e2a53a;}
+  code.inline{
+    background:var(--bg-raised); border:1px solid var(--border-soft); border-radius:4px;
+    padding:2px 6px; font-size:13px; color:var(--accent);
+  }
+
+  hr.section-divider{border:none; border-top:1px solid var(--border-soft); margin:44px 0;}
+
+  ul.plain{margin:0 0 16px 0; padding-left:20px; max-width:680px;}
+  ul.plain li{margin-bottom:10px; color:var(--text);}
+  ul.plain li strong{color:var(--text);}
+
+  .checklist{list-style:none; padding:0; margin:0;}
+  .checklist li{
+    display:flex; gap:12px; padding:12px 0; border-top:1px solid var(--border-soft);
+    max-width:680px;
+  }
+  .checklist li:first-child{border-top:none;}
+  .checklist .check-num{
+    flex:none; width:22px; height:22px; border-radius:50%; border:1px solid var(--accent);
+    color:var(--accent); font-size:11.5px; font-weight:700; display:flex; align-items:center; justify-content:center;
+    margin-top:1px;
+  }
+
+  @media (max-width: 1180px){
+    .shell{grid-template-columns: var(--sidebar-w) minmax(0,1fr);}
+    aside.toc{display:none;}
+  }
+  @media (max-width: 860px){
+    .shell{grid-template-columns: minmax(0,1fr);}
+    aside.sidebar{
+      position:fixed; left:0; top:var(--header-h); bottom:0; width:80vw; max-width:300px;
+      background:var(--bg); z-index:40; transform:translateX(-100%); transition:transform .2s ease;
+      border-right:1px solid var(--border);
+    }
+    aside.sidebar.open{transform:translateX(0);}
+    main{padding:32px 20px 100px 20px;}
+    .menu-toggle{display:flex;}
+    nav.toplinks{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <path d="M13.5 2 4 14.5h7l-1 7.5L20 9.5h-7l.5-7.5Z" fill="#3ecf8e"/>
+    </svg>
+    supabase
+    <span class="divider"></span>
+    <span class="product">docs</span>
+  </div>
+  <nav class="toplinks">
+    <a class="active">Guides</a>
+    <a>API Reference</a>
+    <a>Partners</a>
+  </nav>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div class="search-pill">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      Search docs
+      <kbd>⌘K</kbd>
+    </div>
+    <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="shell">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="nav-label">Partner Integrations</div>
+    <a class="nav-link active" data-target="overview" tabindex="0">MCP client connect flow</a>
+    <a class="nav-link" data-target="connection-requirements" tabindex="0">Connection requirements</a>
+    <a class="nav-link" data-target="known-constraints" tabindex="0">Known constraints</a>
+    <a class="nav-link" data-target="prerequisites" tabindex="0">Prerequisites</a>
+
+    <div class="nav-label">Step-by-step</div>
+    <div class="nav-sub"><a class="nav-link" data-target="sequence-overview" tabindex="0">Full sequence diagram</a></div>
+    <div class="nav-sub"><a class="nav-link" data-target="step-1" tabindex="0">1. OAuth discovery</a></div>
+    <div class="nav-sub"><a class="nav-link" data-target="step-2" tabindex="0">2. PKCE parameters</a></div>
+    <div class="nav-sub"><a class="nav-link" data-target="step-3" tabindex="0">3. Client registration</a></div>
+    <div class="nav-sub"><a class="nav-link" data-target="step-4" tabindex="0">4. Authorization URL</a></div>
+    <div class="nav-sub"><a class="nav-link" data-target="step-5" tabindex="0">5. Callback listener</a></div>
+    <div class="nav-sub"><a class="nav-link" data-target="step-6" tabindex="0">6. Token exchange</a></div>
+    <div class="nav-sub"><a class="nav-link" data-target="step-7" tabindex="0">7. Connect the Agent SDK</a></div>
+
+    <div class="nav-label">Reference</div>
+    <a class="nav-link" data-target="full-script" tabindex="0">Full connect script</a>
+    <a class="nav-link" data-target="token-refresh" tabindex="0">Token refresh handling</a>
+    <a class="nav-link" data-target="testing-checklist" tabindex="0">Testing checklist</a>
+  </aside>
+
+  <main>
+
+    <section id="overview">
+      <div class="status-row">
+        <span class="pill pill-draft">Draft</span>
+        <span class="pill pill-updated">Internal · not yet published</span>
+      </div>
+      <h1>Supabase MCP client connect flow</h1>
+      <p class="lede">How to build an OAuth client for the hosted Supabase MCP server — for partners embedding Supabase as a native connection inside their own AI builder platform, worked end to end with the Claude Agent SDK.</p>
+      <div class="meta-line">
+        Sourced from <code>Linear</code> and <code>#team-ai</code> / <code>#initiative-security-scoped-tokens-for-select-conf</code> on Slack · last verified Sept 2026
+      </div>
+
+      <div class="callout callout-note">
+        <span class="callout-label">The short version</span>
+        <p>Most of the integration effort here is <strong>OAuth</strong>, not MCP. Once you have an access token, connecting it to an MCP tool-calling loop is a few lines. Getting that token — and handling how Supabase's OAuth server behaves in practice — is the rest of this guide.</p>
+      </div>
+    </section>
+
+    <section id="connection-requirements">
+      <h2><span class="h2-num">1</span> Connection requirements</h2>
+      <table>
+        <tr><th>Endpoint</th><th>Value</th><th>Source</th></tr>
+        <tr><td>MCP server</td><td><code>https://mcp.supabase.com/mcp</code></td><td>Existing docs</td></tr>
+        <tr><td>Local dev</td><td><code>http://localhost:54321/mcp</code></td><td>No OAuth today — see §6</td></tr>
+        <tr><td>Protected resource metadata</td><td><code>…/.well-known/oauth-protected-resource/mcp</code></td><td>Slack, security-scoped-tokens thread</td></tr>
+        <tr><td>Authorization server metadata</td><td><code>api.supabase.com/.well-known/oauth-authorization-server</code></td><td>Slack, Pedro Rodrigues</td></tr>
+        <tr><td>Authorize</td><td><code>api.supabase.com/v1/oauth/authorize</code></td><td>Linear AI-767</td></tr>
+        <tr><td>Token</td><td><code>api.supabase.com/v1/oauth/token</code></td><td>Linear AI-767</td></tr>
+        <tr><td>Dynamic Client Registration</td><td><code>api.supabase.com/v1/oauth/register</code></td><td>Linear AI-767</td></tr>
+      </table>
+      <p>Scoping query params (<code class="inline">project_ref</code>, <code class="inline">read_only</code>, <code class="inline">features</code>) live on the <strong>resource URL</strong>, not as OAuth scopes. Whatever you append to the MCP URL is reflected into the discovery call and into the <code class="inline">resource</code> parameter sent to the authorize and token endpoints.</p>
+      <div class="callout callout-flux">
+        <span class="callout-label">In flux</span>
+        <p>The resulting access token is scoped to the <em>organization</em> at the OAuth level. <code class="inline">project_ref</code> in the URL does not cryptographically bind the token to that project — don't treat it as a hard security boundary yet.</p>
+      </div>
+    </section>
+
+    <section id="known-constraints">
+      <h2><span class="h2-num">2</span> Known constraints to design around</h2>
+      <p class="section-intro">Real, currently-open issues. Build defensively around these rather than assuming spec-clean behavior.</p>
+
+      <ol class="constraint-list">
+        <li>
+          <span class="constraint-num">1</span>
+          <div class="constraint-body">
+            <span class="constraint-title">DCR registrations can go stale server-side, permanently</span>
+            <p>Once this happens, every retry with the cached <code class="inline">client_id</code> gets <code class="inline">{"message":"Unrecognized client_id"}</code> (HTTP 422) forever — it does not self-heal. Reported across Cursor, VS Code, and Claude.</p>
+            <div class="callout callout-implication">
+              <span class="callout-label">Design implication</span>
+              <p>Detect this exact error shape and re-run DCR from scratch rather than retrying the same registration.</p>
+            </div>
+          </div>
+        </li>
+        <li>
+          <span class="constraint-num">2</span>
+          <div class="constraint-body">
+            <span class="constraint-title">Only org owners/admins can complete the OAuth handshake</span>
+            <p>Non-admin roles get a 403 at authorize time. This isn't a grantable permission — it's a hard requirement of the current flow.</p>
+            <div class="callout callout-implication">
+              <span class="callout-label">Design implication</span>
+              <p>Surface this requirement in your UI before starting the flow, not after a confusing 403.</p>
+            </div>
+          </div>
+        </li>
+        <li>
+          <span class="constraint-num">3</span>
+          <div class="constraint-body">
+            <span class="constraint-title">A granted connection doesn't shrink if the role is downgraded</span>
+            <p>The grant is tied to the org, not the member's current role, and there's no recheck after the fact.</p>
+            <div class="callout callout-implication">
+              <span class="callout-label">Design implication</span>
+              <p>Don't rely on Supabase-side role changes to revoke access on your end.</p>
+            </div>
+          </div>
+        </li>
+        <li>
+          <span class="constraint-num">4</span>
+          <div class="constraint-body">
+            <span class="constraint-title">One organization per connection</span>
+            <p>A user with access to multiple orgs picks one at authorize time — there's no way to authorize all of them in one grant.</p>
+            <div class="callout callout-implication">
+              <span class="callout-label">Design implication</span>
+              <p>Plan for multiple separate connections if your end users commonly work across orgs.</p>
+            </div>
+          </div>
+        </li>
+        <li>
+          <span class="constraint-num">5</span>
+          <div class="constraint-body">
+            <span class="constraint-title">The consent screen asks for full access, regardless of scoping params</span>
+            <p><code class="inline">features=</code> / <code class="inline">read_only=</code> change what's usable, not what's requested at consent.</p>
+            <div class="callout callout-flux">
+              <span class="callout-label">In flux</span>
+              <p>Being actively redesigned — re-verify close to publishing, it may have shipped by then.</p>
+            </div>
+          </div>
+        </li>
+        <li>
+          <span class="constraint-num">6</span>
+          <div class="constraint-body">
+            <span class="constraint-title">Permission errors are moving to tool-result errors, not OAuth exceptions</span>
+            <p>The emerging pattern returns a normal tool result with <code class="inline">isError: true</code> rather than throwing at the OAuth/403 layer.</p>
+            <div class="callout callout-implication">
+              <span class="callout-label">Design implication</span>
+              <p>Check <code class="inline">isError</code> on tool results — don't build error handling around catching an OAuth exception alone.</p>
+            </div>
+          </div>
+        </li>
+        <li>
+          <span class="constraint-num">7</span>
+          <div class="constraint-body">
+            <span class="constraint-title">Confidential clients only, for now</span>
+            <p>Supabase does not currently register public (secret-less) OAuth clients for MCP.</p>
+            <div class="callout callout-implication">
+              <span class="callout-label">Design implication</span>
+              <p>If your client is fully client-side, confirm you can actually hold the returned <code class="inline">client_secret</code>, or use a thin backend.</p>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section id="prerequisites">
+      <h2><span class="h2-num">3</span> Prerequisites</h2>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="filename">terminal</span>
+          <span class="lang">bash</span>
+        </div>
+        <script type="text/plain" class="code-src" data-lang="bash">npm install @anthropic-ai/claude-agent-sdk
+npm install express          # for the local OAuth redirect handler in this example</script>
+        <pre><code></code></pre>
+      </div>
+
+      <p>The Claude Agent SDK <strong>does not perform the OAuth flow for you</strong>. It only accepts a bearer token via <code class="inline">headers</code> on an <code class="inline">http</code>-type MCP server config. You run discovery → PKCE → DCR → authorize → token exchange yourself, then hand the SDK the finished access token.</p>
+
+      <div class="callout callout-note">
+        <span class="callout-label">Known SDK issue</span>
+        <p><code class="inline">claude-agent-sdk-typescript</code> issue #202 reports HTTP-transport MCP connections failing with 406 on some versions (<code class="inline">0.2.52</code>). If tool calls fail with a 406 during testing, check the installed SDK version before assuming the OAuth code below is wrong.</p>
+      </div>
+    </section>
+
+    <section id="step-by-step">
+      <h2><span class="h2-num">4</span> Step-by-step</h2>
+
+      <h3 id="sequence-overview">Full sequence diagram</h3>
+      <p class="tight text-mid">Every message below, end to end — discovery, PKCE, dynamic client registration, the browser-mediated authorize step, token exchange, and the eventual MCP tool call — mapped onto the concrete endpoints and field names used in steps 1–7. Steps <code class="inline">0f</code>/<code class="inline">0g</code> only happen once; every connection after the first finds a cached <code class="inline">client_id</code> and skips straight to step 1.</p>
+      <div class="code-block" style="padding:20px 4px;">
+        <svg viewBox="0 0 680 1160" width="100%" style="display:block;" role="img" aria-label="Sequence diagram of the full Supabase MCP OAuth flow, from discovery through token exchange to an MCP tool call">
+          <style>
+            .seq-box-us{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1;}
+            .seq-box-them{fill:var(--bg-raised);stroke:var(--border);stroke-width:1;}
+            .seq-title-us{font-family:'Inter',sans-serif;font-size:13px;font-weight:600;fill:var(--accent);}
+            .seq-title-them{font-family:'Inter',sans-serif;font-size:13px;font-weight:600;fill:var(--text);}
+            .seq-sub{font-family:'JetBrains Mono',monospace;font-size:10.5px;fill:var(--text-mid);}
+            .seq-line{stroke:var(--text-dim);stroke-width:1.3;fill:none;}
+            .seq-line-dashed{stroke:var(--text-dim);stroke-width:1.3;fill:none;stroke-dasharray:4 3;}
+            .seq-lifeline{stroke:var(--border);stroke-width:1;stroke-dasharray:2 3;}
+            .seq-step-title{font-family:'Inter',sans-serif;font-size:11.5px;fill:var(--text);font-weight:500;}
+            .seq-step-detail{font-family:'JetBrains Mono',monospace;font-size:10.5px;fill:var(--text-mid);}
+          </style>
+          <defs>
+            <marker id="seqArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M2 1L8 5L2 9" fill="none" stroke="var(--text-dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+          </defs>
+
+          <rect x="40" y="40" width="130" height="56" rx="8" class="seq-box-us"/>
+          <text x="105" y="58" text-anchor="middle" dominant-baseline="central" class="seq-title-us">Org owner</text>
+          <text x="105" y="76" text-anchor="middle" dominant-baseline="central" class="seq-sub">resource owner</text>
+
+          <rect x="190" y="40" width="120" height="56" rx="8" class="seq-box-us"/>
+          <text x="250" y="58" text-anchor="middle" dominant-baseline="central" class="seq-title-us">Your app</text>
+          <text x="250" y="76" text-anchor="middle" dominant-baseline="central" class="seq-sub">client</text>
+
+          <rect x="330" y="40" width="145" height="56" rx="8" class="seq-box-them"/>
+          <text x="402" y="58" text-anchor="middle" dominant-baseline="central" class="seq-title-them">Auth server</text>
+          <text x="402" y="76" text-anchor="middle" dominant-baseline="central" class="seq-sub">api.supabase.com</text>
+
+          <rect x="495" y="40" width="145" height="56" rx="8" class="seq-box-them"/>
+          <text x="567" y="58" text-anchor="middle" dominant-baseline="central" class="seq-title-them">MCP server</text>
+          <text x="567" y="76" text-anchor="middle" dominant-baseline="central" class="seq-sub">mcp.supabase.com</text>
+
+          <line x1="105" y1="96" x2="105" y2="1120" class="seq-lifeline"/>
+          <line x1="250" y1="96" x2="250" y2="1120" class="seq-lifeline"/>
+          <line x1="402" y1="96" x2="402" y2="1120" class="seq-lifeline"/>
+          <line x1="567" y1="96" x2="567" y2="1120" class="seq-lifeline"/>
+
+          <line x1="250" y1="130" x2="567" y2="130" class="seq-line" marker-end="url(#seqArrow)"/>
+          <text x="409" y="146" text-anchor="middle" class="seq-step-title">0a. Discover resource metadata</text>
+          <text x="409" y="160" text-anchor="middle" class="seq-step-detail">GET oauth-protected-resource</text>
+
+          <line x1="567" y1="210" x2="250" y2="210" class="seq-line-dashed" marker-end="url(#seqArrow)"/>
+          <text x="409" y="226" text-anchor="middle" class="seq-step-title">0b. Resource metadata</text>
+          <text x="409" y="240" text-anchor="middle" class="seq-step-detail">authorization_servers: [...]</text>
+
+          <line x1="250" y1="290" x2="402" y2="290" class="seq-line" marker-end="url(#seqArrow)"/>
+          <text x="326" y="306" text-anchor="middle" class="seq-step-title">0c. Discover auth metadata</text>
+          <text x="326" y="320" text-anchor="middle" class="seq-step-detail">GET oauth-authorization-server</text>
+
+          <line x1="402" y1="370" x2="250" y2="370" class="seq-line-dashed" marker-end="url(#seqArrow)"/>
+          <text x="326" y="386" text-anchor="middle" class="seq-step-title">0d. Auth metadata</text>
+          <text x="326" y="400" text-anchor="middle" class="seq-step-detail">registration + token endpoints</text>
+
+          <path d="M250 450 L290 450 L290 466 L250 466" class="seq-line" marker-end="url(#seqArrow)"/>
+          <text x="300" y="454" text-anchor="start" class="seq-step-title">0e. Generate PKCE + state</text>
+          <text x="300" y="468" text-anchor="start" class="seq-step-detail">code_verifier, code_challenge</text>
+
+          <line x1="250" y1="530" x2="402" y2="530" class="seq-line" marker-end="url(#seqArrow)"/>
+          <text x="326" y="546" text-anchor="middle" class="seq-step-title">0f. Register client</text>
+          <text x="326" y="560" text-anchor="middle" class="seq-step-detail">POST registration_endpoint (if not cached)</text>
+
+          <line x1="402" y1="610" x2="250" y2="610" class="seq-line-dashed" marker-end="url(#seqArrow)"/>
+          <text x="326" y="626" text-anchor="middle" class="seq-step-title">0g. Client credentials</text>
+          <text x="326" y="640" text-anchor="middle" class="seq-step-detail">client_id + client_secret</text>
+
+          <line x1="250" y1="690" x2="105" y2="690" class="seq-line" marker-end="url(#seqArrow)"/>
+          <text x="178" y="706" text-anchor="middle" class="seq-step-title">1. Authorization request</text>
+          <text x="178" y="720" text-anchor="middle" class="seq-step-detail">open browser: authorizeUrl</text>
+
+          <line x1="105" y1="770" x2="250" y2="770" class="seq-line-dashed" marker-end="url(#seqArrow)"/>
+          <text x="178" y="786" text-anchor="middle" class="seq-step-title">2. Authorization grant</text>
+          <text x="178" y="800" text-anchor="middle" class="seq-step-detail">redirect to callback: code + state</text>
+
+          <line x1="250" y1="850" x2="402" y2="850" class="seq-line" marker-end="url(#seqArrow)"/>
+          <text x="326" y="866" text-anchor="middle" class="seq-step-title">3. Authorization grant</text>
+          <text x="326" y="880" text-anchor="middle" class="seq-step-detail">POST /token: code + code_verifier</text>
+
+          <line x1="402" y1="930" x2="250" y2="930" class="seq-line-dashed" marker-end="url(#seqArrow)"/>
+          <text x="326" y="946" text-anchor="middle" class="seq-step-title">4. Access token</text>
+          <text x="326" y="960" text-anchor="middle" class="seq-step-detail">access_token + refresh_token</text>
+
+          <line x1="250" y1="1010" x2="567" y2="1010" class="seq-line" marker-end="url(#seqArrow)"/>
+          <text x="409" y="1026" text-anchor="middle" class="seq-step-title">5. Access token</text>
+          <text x="409" y="1040" text-anchor="middle" class="seq-step-detail">Authorization: Bearer &lt;token&gt;</text>
+
+          <line x1="567" y1="1090" x2="250" y2="1090" class="seq-line-dashed" marker-end="url(#seqArrow)"/>
+          <text x="409" y="1106" text-anchor="middle" class="seq-step-title">6. Protected resource</text>
+          <text x="409" y="1120" text-anchor="middle" class="seq-step-detail">MCP tool results</text>
+        </svg>
+      </div>
+
+      <h3 id="step-1"><span class="step-tag">01</span>OAuth discovery</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="filename">oauth.ts</span><span class="lang">typescript</span></div>
+        <script type="text/plain" class="code-src" data-lang="typescript">type OAuthMetadata = {
+  issuer: string
+  authorization_endpoint: string
+  token_endpoint: string
+  registration_endpoint?: string
+  scopes_supported?: string[]
+  code_challenge_methods_supported?: string[]
+}
+
+async function discoverOAuthMetadata(mcpServerUrl: string): Promise<OAuthMetadata> {
+  const url = new URL(mcpServerUrl)
+
+  // NOTE: Supabase's protected-resource metadata path includes the /mcp
+  // suffix (unlike some other MCP servers). Confirmed via Slack:
+  // https://mcp.supabase.com/.well-known/oauth-protected-resource/mcp
+  const protectedResourceUrl = new URL(
+    `/.well-known/oauth-protected-resource${url.pathname}${url.search}`,
+    url.origin
+  )
+
+  const prRes = await fetch(protectedResourceUrl.toString())
+  if (!prRes.ok) {
+    throw new Error(`Protected resource metadata fetch failed: ${prRes.status}`)
+  }
+  const protectedResource = await prRes.json()
+  const authServers = protectedResource.authorization_servers
+  if (!Array.isArray(authServers) || authServers.length === 0) {
+    throw new Error("No authorization_servers in protected resource metadata")
+  }
+
+  // Confirmed: the auth server is api.supabase.com, not mcp.supabase.com
+  const metadataUrl = new URL("/.well-known/oauth-authorization-server", authServers[0])
+  const metaRes = await fetch(metadataUrl.toString())
+  if (!metaRes.ok) {
+    throw new Error(`Authorization server metadata fetch failed: ${metaRes.status}`)
+  }
+  return (await metaRes.json()) as OAuthMetadata
+}</script>
+        <pre><code></code></pre>
+      </div>
+
+      <h3 id="step-2"><span class="step-tag">02</span>PKCE parameters</h3>
+      <p class="tight text-mid">Generic OAuth, no Supabase-specific behavior — same pattern as any RFC 7636 implementation.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="filename">pkce.ts</span><span class="lang">typescript</span></div>
+        <script type="text/plain" class="code-src" data-lang="typescript">import { randomBytes, createHash } from "crypto"
+
+function base64URLEncode(buf: Buffer): string {
+  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "")
+}
+
+function generateCodeVerifier(): string {
+  return base64URLEncode(randomBytes(32))
+}
+
+function generateCodeChallenge(verifier: string): string {
+  return base64URLEncode(createHash("sha256").update(verifier).digest())
+}</script>
+        <pre><code></code></pre>
+      </div>
+
+      <h3 id="step-3"><span class="step-tag">03</span>Dynamic client registration</h3>
+      <p class="tight text-mid">This step needs to be defensive against the stale-<code class="inline">client_id</code> bug (constraint #1). Persist credentials, and on a confirmed failure later in the flow, wipe the stored registration and register fresh.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="filename">register.ts</span><span class="lang">typescript</span></div>
+        <script type="text/plain" class="code-src" data-lang="typescript">import { writeFileSync, readFileSync, existsSync } from "fs"
+
+type ClientCredentials = {
+  client_id: string
+  client_secret?: string
+}
+
+const CREDENTIALS_PATH = "./.supabase-mcp-client.json"
+
+async function registerClient(
+  metadata: OAuthMetadata,
+  redirectUri: string
+): Promise<ClientCredentials> {
+  if (!metadata.registration_endpoint) {
+    throw new Error("Server does not support dynamic client registration")
+  }
+
+  const res = await fetch(metadata.registration_endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      client_name: "Your App — Supabase MCP Client",
+      redirect_uris: [redirectUri],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      // Confidential client — Supabase does not register public clients
+      // for MCP today. Expect a client_secret back.
+      token_endpoint_auth_method: "client_secret_basic",
+    }),
+  })
+
+  if (!res.ok) {
+    throw new Error(`Client registration failed: ${res.status} - ${await res.text()}`)
+  }
+
+  const credentials = (await res.json()) as ClientCredentials
+  writeFileSync(CREDENTIALS_PATH, JSON.stringify(credentials))
+  return credentials
+}
+
+async function getOrRegisterClient(
+  metadata: OAuthMetadata,
+  redirectUri: string,
+  forceNew = false
+): Promise<ClientCredentials> {
+  if (!forceNew && existsSync(CREDENTIALS_PATH)) {
+    return JSON.parse(readFileSync(CREDENTIALS_PATH, "utf-8"))
+  }
+  return registerClient(metadata, redirectUri)
+}</script>
+        <pre><code></code></pre>
+      </div>
+
+      <h3 id="step-4"><span class="step-tag">04</span>Build the authorization URL</h3>
+      <p class="tight text-mid">The <code class="inline">resource</code> param must be the full MCP connection URL, including any scoping query params — not the bare endpoint.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="filename">authorize-url.ts</span><span class="lang">typescript</span></div>
+        <script type="text/plain" class="code-src" data-lang="typescript">function buildAuthorizationUrl(
+  metadata: OAuthMetadata,
+  clientId: string,
+  redirectUri: string,
+  codeChallenge: string,
+  state: string,
+  resourceUrl: string // e.g. "https://mcp.supabase.com/mcp?project_ref=abc123&read_only=true"
+): string {
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    state,
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
+    resource: resourceUrl,
+  })
+  return `${metadata.authorization_endpoint}?${params.toString()}`
+}</script>
+        <pre><code></code></pre>
+      </div>
+      <p class="tight text-mid">Remember constraint #2: the user completing this flow must be an org owner/admin, or they'll hit a 403 here.</p>
+
+      <h3 id="step-5"><span class="step-tag">05</span>Local callback listener</h3>
+      <p class="tight text-mid">For a CLI/script test harness, a minimal Express listener is enough. A production integration would do this server-side instead.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="filename">callback.ts</span><span class="lang">typescript</span></div>
+        <script type="text/plain" class="code-src" data-lang="typescript">import express from "express"
+
+function waitForCallback(port: number): Promise<{ code: string; state: string }> {
+  return new Promise((resolve, reject) => {
+    const app = express()
+    const server = app.listen(port)
+
+    app.get("/callback", (req, res) => {
+      const { code, state, error, error_description } = req.query as Record<string, string>
+      res.send(error ? `Auth failed: ${error_description || error}` : "Connected. You can close this tab.")
+      server.close()
+      if (error) reject(new Error(`${error}: ${error_description}`))
+      else if (!code || !state) reject(new Error("Missing code or state in callback"))
+      else resolve({ code, state })
+    })
+  })
+}</script>
+        <pre><code></code></pre>
+      </div>
+
+      <h3 id="step-6"><span class="step-tag">06</span>Exchange code for tokens</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="filename">token-exchange.ts</span><span class="lang">typescript</span></div>
+        <script type="text/plain" class="code-src" data-lang="typescript">type TokenResponse = {
+  access_token: string
+  refresh_token?: string
+  expires_in?: number
+  token_type: string
+}
+
+async function exchangeCodeForTokens(
+  code: string,
+  codeVerifier: string,
+  metadata: OAuthMetadata,
+  clientId: string,
+  clientSecret: string | undefined,
+  redirectUri: string
+): Promise<TokenResponse> {
+  const params = new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    code_verifier: codeVerifier,
+  })
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    Accept: "application/json",
+  }
+  if (clientSecret) {
+    headers["Authorization"] = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`
+  }
+
+  const res = await fetch(metadata.token_endpoint, { method: "POST", headers, body: params.toString() })
+
+  if (!res.ok) {
+    const body = await res.text()
+    // Constraint #1 — detect the stale-client_id bug specifically so the
+    // caller can re-register instead of retrying uselessly.
+    if (body.includes("Unrecognized client_id")) {
+      throw new Error("STALE_CLIENT_ID")
+    }
+    throw new Error(`Token exchange failed: ${res.status} - ${body}`)
+  }
+
+  return (await res.json()) as TokenResponse
+}</script>
+        <pre><code></code></pre>
+      </div>
+
+      <h3 id="step-7"><span class="step-tag">07</span>Connect with the Claude Agent SDK</h3>
+      <p class="tight text-mid">Once you have an access token, hand it to the SDK as a bearer header on an <code class="inline">http</code>-type MCP server. This is the only integration point between the OAuth code above and the SDK.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="filename">run-agent.ts</span><span class="lang">typescript</span></div>
+        <script type="text/plain" class="code-src" data-lang="typescript">import { query, type Options } from "@anthropic-ai/claude-agent-sdk"
+
+async function runAgentWithSupabaseMcp(accessToken: string, mcpUrl: string) {
+  const options: Options = {
+    mcpServers: {
+      supabase: {
+        type: "http",
+        url: mcpUrl, // e.g. "https://mcp.supabase.com/mcp?project_ref=abc123&read_only=true"
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    },
+    allowedTools: ["mcp__supabase__*"],
+  }
+
+  for await (const message of query({
+    prompt: "List the tables in this Supabase project.",
+    options,
+  })) {
+    if (message.type === "result" && message.subtype === "success") {
+      console.log(message.result)
+    }
+    // Constraint #6 — permission errors may come back as a normal tool
+    // result with isError: true rather than an exception.
+    if (message.type === "tool_result" && (message as any).isError) {
+      console.warn("Tool call returned an error result:", message)
+    }
+  }
+}</script>
+        <pre><code></code></pre>
+      </div>
+    </section>
+
+    <section id="full-script">
+      <h2><span class="h2-num">5</span> Full connect script</h2>
+      <p class="section-intro">Assembles every step above into one runnable file, with the stale-client_id recovery path wired in.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="filename">connect-supabase-mcp.ts</span><span class="lang">typescript</span></div>
+        <script type="text/plain" class="code-src" data-lang="typescript">import "dotenv/config"
+import open from "open"
+
+const REDIRECT_URI = "http://localhost:8765/callback"
+const MCP_URL = process.env.SUPABASE_MCP_URL || "https://mcp.supabase.com/mcp"
+
+async function main() {
+  console.log("Discovering OAuth metadata...")
+  const metadata = await discoverOAuthMetadata(MCP_URL)
+
+  console.log("Registering client (or reusing saved registration)...")
+  let credentials = await getOrRegisterClient(metadata, REDIRECT_URI)
+
+  const codeVerifier = generateCodeVerifier()
+  const codeChallenge = generateCodeChallenge(codeVerifier)
+  const state = randomBytes(16).toString("hex")
+
+  const authUrl = buildAuthorizationUrl(
+    metadata,
+    credentials.client_id,
+    REDIRECT_URI,
+    codeChallenge,
+    state,
+    MCP_URL
+  )
+
+  console.log("Opening browser for Supabase login/consent...")
+  console.log("If this doesn't open automatically, visit:", authUrl)
+  await open(authUrl)
+
+  const callback = await waitForCallback(8765)
+  if (callback.state !== state) throw new Error("State mismatch — possible CSRF")
+
+  console.log("Exchanging code for tokens...")
+  let tokens: TokenResponse
+  try {
+    tokens = await exchangeCodeForTokens(
+      callback.code,
+      codeVerifier,
+      metadata,
+      credentials.client_id,
+      credentials.client_secret,
+      REDIRECT_URI
+    )
+  } catch (err) {
+    if (err instanceof Error && err.message === "STALE_CLIENT_ID") {
+      // Constraint #1 — known bug. Force a fresh registration and tell the
+      // user to re-run rather than looping silently.
+      console.warn("Registered client_id was rejected as unrecognized (known Supabase MCP issue).")
+      console.warn("Re-registering a fresh client. Please re-run this script.")
+      await registerClient(metadata, REDIRECT_URI)
+      process.exit(1)
+    }
+    throw err
+  }
+
+  console.log("Connected. Running a test query against the MCP server...")
+  await runAgentWithSupabaseMcp(tokens.access_token, MCP_URL)
+}
+
+main().catch((err) => {
+  console.error("Connect flow failed:", err)
+  process.exit(1)
+})</script>
+        <pre><code></code></pre>
+      </div>
+    </section>
+
+    <section id="token-refresh">
+      <h2><span class="h2-num">6</span> Token refresh handling</h2>
+      <p class="section-intro">Three distinct failure modes, three different fixes — don't lump them into one retry-and-hope handler.</p>
+
+      <h3 id="basic-mechanics">Basic mechanics</h3>
+      <p class="tight text-mid">Standard <code class="inline">grant_type=refresh_token</code>. Access tokens run roughly 1 hour. Your DCR registration must include <code class="inline">refresh_token</code> in <code class="inline">grant_types</code> or one won't be issued.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="filename">refresh.ts</span><span class="lang">typescript</span></div>
+        <script type="text/plain" class="code-src" data-lang="typescript">async function refreshAccessToken(
+  refreshToken: string,
+  metadata: OAuthMetadata,
+  clientId: string,
+  clientSecret: string | undefined
+): Promise<TokenResponse> {
+  const params = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: clientId,
+  })
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    Accept: "application/json",
+  }
+  if (clientSecret) {
+    headers["Authorization"] = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`
+  }
+
+  const res = await fetch(metadata.token_endpoint, { method: "POST", headers, body: params.toString() })
+  if (!res.ok) {
+    const body = await res.text()
+    if (body.includes("Unrecognized client_id")) throw new Error("STALE_CLIENT_ID")
+    throw new Error(`Refresh failed: ${res.status} - ${body}`)
+  }
+  return (await res.json()) as TokenResponse
+}</script>
+        <pre><code></code></pre>
+      </div>
+
+      <h3 id="failure-mode-1">Failure mode 1 — improper storage of rotated refresh tokens</h3>
+      <p>Every refresh issues a <strong>new</strong> refresh token; the one you sent is spent. This has already caused at least one real client failure — not a Supabase bug, a client-side storage bug.</p>
+      <div class="callout callout-implication">
+        <span class="callout-label">Design implication</span>
+        <p>Persist the new <code class="inline">refresh_token</code> atomically with the new access token, before any other request. If two processes can refresh concurrently, serialize with a lock — the loser of a race gets stranded with a dead token.</p>
+      </div>
+
+      <h3 id="failure-mode-2">Failure mode 2 — the client_id reaping mechanism</h3>
+      <p>This is the "Unrecognized client_id" bug from §2, now root-caused:</p>
+      <ul class="plain">
+        <li>A <strong>15-minute cron</strong> deletes DCR registrations that were <strong>never approved</strong> — abandoned mid-consent, or the user never finished the browser flow.</li>
+        <li><strong>Revoking</strong> a connection deletes the row that shields an approved client from that same reaper. A client that registers, consents, mints a token, and is revoked within roughly an hour can fall back into the reap window.</li>
+        <li>A <strong>fully approved, actively-refreshed connection is not at ongoing risk</strong> — the danger window is abandoned or revoked-then-idle registrations, not steady-state usage.</li>
+      </ul>
+      <div class="callout callout-flux">
+        <span class="callout-label">The self-healing gap</span>
+        <p>A spec-compliant error response looks like <code class="inline">{"error": "invalid_client"}</code>. Well-behaved clients (Claude Code, and the shared MCP TS SDK path Cursor/VS Code inherit) already auto-clear and re-register on exactly that signal. Supabase currently returns <code class="inline">{"message": "Unrecognized client_id"}</code> instead — no <code class="inline">error</code> field — so that built-in recovery never fires. A spec-shaped fix was in draft/CI-green as of Aug 2026; confirm it's shipped before assuming partners need custom handling here.</p>
+      </div>
+      <div class="callout callout-implication">
+        <span class="callout-label">Design implication</span>
+        <p>Until that fix ships, keep the defensive <code class="inline">STALE_CLIENT_ID</code> detection above. Once it ships, a generic RFC-6749-compliant handler should be enough on its own — this workaround is temporary, not a permanent Supabase quirk.</p>
+      </div>
+      <div class="callout callout-note">
+        <span class="callout-label">Manual recovery for testing</span>
+        <p><code class="inline">claude mcp logout supabase</code> then <code class="inline">claude mcp login supabase</code>. <code class="inline">login</code> alone is not enough — it preserves the existing registration when the redirect URI/port haven't changed, which just reproduces the failure.</p>
+      </div>
+
+      <h3 id="unconfirmed">What's still unconfirmed</h3>
+      <ul class="plain">
+        <li><strong>Refresh token lifetime.</strong> No documented number for this OAuth 2.1 server — test empirically rather than assuming an idle-timeout pattern.</li>
+        <li><strong>CIMD as a longer-term fix.</strong> Would remove the reaping problem entirely by making the client_id a URL instead of a stored row. Client support today is partial; Supabase's own attempt was blocked over an SSRF concern.</li>
+        <li><strong>Local/self-hosted OAuth.</strong> Doesn't exist yet — local MCP is open by default. A resource-server implementation is in early POC.</li>
+      </ul>
+    </section>
+
+    <section id="testing-checklist">
+      <h2><span class="h2-num">7</span> Testing checklist</h2>
+      <p class="section-intro">What to verify when running the full script above end to end.</p>
+      <ol class="checklist">
+        <li><span class="check-num">1</span><span>Discovery resolves both metadata documents without manual URL guessing.</span></li>
+        <li><span class="check-num">2</span><span>The consent screen appears and only succeeds for an org owner/admin.</span></li>
+        <li><span class="check-num">3</span><span>Token exchange succeeds and a Supabase MCP tool call round-trips end to end.</span></li>
+        <li><span class="check-num">4</span><span>Manually mangle the saved client credentials file and confirm the script detects the stale-client_id error and re-registers.</span></li>
+        <li><span class="check-num">5</span><span>Watch for the SDK's known 406 issue — rule out the transport before blaming this auth code.</span></li>
+        <li><span class="check-num">6</span><span>Call the refresh function explicitly and confirm the new refresh token is persisted, not the old one.</span></li>
+      </ol>
+    </section>
+
+  </main>
+
+  <aside class="toc">
+    <div class="toc-title">On this page</div>
+    <a class="toc-link" data-target="overview" tabindex="0">Overview</a>
+    <a class="toc-link" data-target="connection-requirements" tabindex="0">Connection requirements</a>
+    <a class="toc-link" data-target="known-constraints" tabindex="0">Known constraints</a>
+    <a class="toc-link" data-target="prerequisites" tabindex="0">Prerequisites</a>
+    <a class="toc-link" data-target="step-by-step" tabindex="0">Step-by-step</a>
+    <a class="toc-link" data-target="sequence-overview" tabindex="0">Full sequence diagram</a>
+    <a class="toc-link" data-target="full-script" tabindex="0">Full connect script</a>
+    <a class="toc-link" data-target="token-refresh" tabindex="0">Token refresh handling</a>
+    <a class="toc-link" data-target="testing-checklist" tabindex="0">Testing checklist</a>
+  </aside>
+
+</div>
+
+<script>
+  // ---- syntax highlighting (lightweight, presentational) ----
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function highlight(raw, lang){
+    let s = escapeHtml(raw);
+    if(lang === 'bash'){
+      s = s.replace(/(#.*)$/gm, '<span class="tok-comment">$1</span>');
+      return s;
+    }
+    s = s.replace(/(\/\/.*)$/gm, '<span class="tok-comment">$1</span>');
+    s = s.replace(/(`(?:[^`\\]|\\.)*`|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g, '<span class="tok-string">$1</span>');
+    s = s.replace(/\b(const|let|var|async|await|function|return|if|else|throw|new|try|catch|import|from|export|type|interface|void|true|false|null|undefined)\b/g, '<span class="tok-keyword">$1</span>');
+    s = s.replace(/\b(\d+)\b/g, '<span class="tok-number">$1</span>');
+    return s;
+  }
+  document.querySelectorAll('script.code-src').forEach(function(el){
+    const raw = el.textContent;
+    const lang = el.getAttribute('data-lang') || 'typescript';
+    const codeEl = el.nextElementSibling.querySelector('code');
+    codeEl.innerHTML = highlight(raw, lang);
+  });
+
+  // ---- copy buttons (visual affordance) ----
+  document.querySelectorAll('.code-block').forEach(function(block){
+    const header = block.querySelector('.code-block-header');
+    if(!header) return;
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+    btn.addEventListener('click', function(){
+      const codeText = block.querySelector('code').textContent;
+      navigator.clipboard?.writeText(codeText);
+      btn.innerHTML = 'Copied';
+      setTimeout(()=>{ btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy'; }, 1200);
+    });
+    header.appendChild(btn);
+  });
+
+  // ---- scrollspy + click navigation for sidebar + toc ----
+  // Links use data-target (not href="#...") and JS scrollIntoView, so clicking
+  // never triggers a real hash navigation — some sandboxed file viewers hijack
+  // '#' links as if they were app navigation instead of an in-page anchor.
+  const navLinks = Array.from(document.querySelectorAll('.sidebar .nav-link'));
+  const tocLinks = Array.from(document.querySelectorAll('.toc .toc-link'));
+  const sections = Array.from(document.querySelectorAll('main section'));
+
+  function setActive(id){
+    navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('data-target') === id));
+    tocLinks.forEach(l => l.classList.toggle('active', l.getAttribute('data-target') === id));
+  }
+
+  document.querySelectorAll('[data-target]').forEach(function(el){
+    function go(){
+      const id = el.getAttribute('data-target');
+      const target = document.getElementById(id);
+      if(!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setActive(id);
+    }
+    el.addEventListener('click', function(e){ e.preventDefault(); go(); });
+    el.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(); }
+    });
+  });
+
+  const observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        setActive(entry.target.id);
+      }
+    });
+  }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+
+  sections.forEach(s => observer.observe(s));
+
+  // ---- mobile sidebar toggle ----
+  const menuToggle = document.getElementById('menuToggle');
+  const sidebar = document.getElementById('sidebar');
+  menuToggle?.addEventListener('click', function(){
+    sidebar.classList.toggle('open');
+  });
+</script>
+
+</body>
+</html>
