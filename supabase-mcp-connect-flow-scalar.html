@@ -338,16 +338,16 @@
       <p class="tight text-mid">See also: Supabase's own <a href="https://supabase.com/docs/guides/getting-started/mcp" target="_blank" rel="noopener">MCP getting-started docs</a>, which cover client setup for Cursor, VS Code, Claude, ChatGPT, and others.</p>
       <table>
         <tr><th>Endpoint</th><th>Value</th><th>Source</th></tr>
-        <tr><td>MCP server</td><td><code>https://mcp.supabase.com/mcp</code></td><td>Existing docs</td></tr>
+        <tr><td>MCP server</td><td><code>https://mcp.supabase.com/mcp</code></td><td><a href="https://supabase.com/docs/guides/getting-started/mcp" target="_blank" rel="noopener">Existing docs</a></td></tr>
         <tr><td>Local dev</td><td><code>http://localhost:54321/mcp</code></td><td>No OAuth today — see §5</td></tr>
-        <tr><td>Authorize</td><td><code>api.supabase.com/v1/oauth/authorize</code></td><td>Matches Supabase's public OAuth integration guide</td></tr>
-        <tr><td>Token</td><td><code>api.supabase.com/v1/oauth/token</code></td><td>Matches Supabase's public OAuth integration guide</td></tr>
+        <tr><td>Authorize</td><td><code>api.supabase.com/v1/oauth/authorize</code></td><td>Matches Supabase's <a href="https://supabase.com/docs/guides/integrations/build-a-supabase-oauth-integration" target="_blank" rel="noopener">public OAuth integration guide</a></td></tr>
+        <tr><td>Token</td><td><code>api.supabase.com/v1/oauth/token</code></td><td>Matches Supabase's <a href="https://supabase.com/docs/guides/integrations/build-a-supabase-oauth-integration" target="_blank" rel="noopener">public OAuth integration guide</a></td></tr>
         <tr><td>Discovery + registration</td><td><em>discovered at runtime, not a fixed path</em></td><td>Per RFC 9728 / RFC 8414</td></tr>
       </table>
       <p>Scoping query params (<code class="inline">project_ref</code>, <code class="inline">read_only</code>, <code class="inline">features</code>) live on the <strong>resource URL</strong>, not as OAuth scopes. Whatever you append to the MCP URL is reflected into the discovery call and into the <code class="inline">resource</code> parameter sent to the authorize and token endpoints.</p>
       <div class="callout callout-note">
         <span class="callout-label">Not every client can do DCR</span>
-        <p>Supabase's docs note this directly: <em>"If your MCP client requires an OAuth client ID and secret (e.g. Azure API Center), you can manually create an OAuth app."</em> If your platform can't perform dynamic registration, create one from your org's dashboard instead and use its fixed <code class="inline">client_id</code>/<code class="inline">client_secret</code> in place of step 3 below.</p>
+        <p><a href="https://supabase.com/docs/guides/getting-started/mcp" target="_blank" rel="noopener">Supabase's docs</a> note this directly: <em>"If your MCP client requires an OAuth client ID and secret (e.g. Azure API Center), you can manually create an OAuth app."</em> If your platform can't perform dynamic registration, create one from your org's dashboard instead and use its fixed <code class="inline">client_id</code>/<code class="inline">client_secret</code> in place of step 3 below.</p>
       </div>
     </section>
 
@@ -365,11 +365,6 @@ npm install express          # for the local OAuth redirect handler in this exam
       </div>
 
       <p>The Claude Agent SDK <strong>does not perform the OAuth flow for you</strong>. It only accepts a bearer token via <code class="inline">headers</code> on an <code class="inline">http</code>-type MCP server config. You run discovery → PKCE → DCR → authorize → token exchange yourself, then hand the SDK the finished access token.</p>
-
-      <div class="callout callout-note">
-        <span class="callout-label">Known SDK issue — confirmed closed, Sept 2026</span>
-        <p><code class="inline">claude-agent-sdk-typescript</code> issue #202 reports HTTP-transport MCP connections failing with 406 on some versions (<code class="inline">0.2.52</code>). The issue is real and is now <strong>closed</strong>; the current SDK is at <code class="inline">0.3.277</code>, far past the version that reproduced it, so the risk of hitting this today is low. "Closed" isn't the same as "verified fixed at whatever version you install," though — if tool calls fail with a 406 during testing, still check the installed SDK version before assuming the OAuth code below is wrong.</p>
-      </div>
     </section>
 
     <section id="step-by-step">
@@ -705,11 +700,7 @@ async function exchangeCodeForTokens(
       </div>
 
       <h3 id="step-7"><span class="step-tag">07</span>Connect with the Claude Agent SDK</h3>
-      <p class="tight text-mid">Once you have an access token, hand it to the SDK as a bearer header on an <code class="inline">http</code>-type MCP server. This is the only integration point between the OAuth code above and the SDK.</p>
-      <div class="callout callout-flux">
-        <span class="callout-label">Corrected — Sept 2026</span>
-        <p>The original version of this code checked <code class="inline">message.type === "tool_result"</code>. That message type doesn't exist in the current Agent SDK — tool results arrive as content blocks inside a <code class="inline">user</code>-role message, not as their own top-level message. There's also a second failure mode worth watching for separately: if a server's token is rejected at <em>connection</em> time rather than per call, the SDK reports <code class="inline">needs-auth</code> in the <code class="inline">system</code>/<code class="inline">init</code> message's <code class="inline">mcp_servers[]</code> array, and the run continues <strong>silently</strong> without that server's tools — no exception, no <code class="inline">isError</code>. Checking <code class="inline">isError</code> alone won't catch it; the code below now checks both.</p>
-      </div>
+      <p class="tight text-mid">Once you have an access token, hand it to the SDK as a bearer header on an <code class="inline">http</code>-type MCP server. This is the only integration point between the OAuth code above and the SDK. Check both the <code class="inline">init</code> message's server status and each tool result's <code class="inline">isError</code> flag — a rejected server can fail silently at the connection level without ever throwing or returning an error result.</p>
       <div class="code-block">
         <div class="code-block-header"><span class="filename">run-agent.ts</span><span class="lang">typescript</span></div>
         <script type="text/plain" class="code-src" data-lang="typescript">import { query, type Options } from "@anthropic-ai/claude-agent-sdk"
@@ -886,31 +877,15 @@ main().catch((err) => {
         <li><strong>Revoking</strong> a connection deletes the row that shields an approved client from that same reaper. A client that registers, consents, mints a token, and is revoked within roughly an hour can fall back into the reap window.</li>
         <li>A <strong>fully approved, actively-refreshed connection is not at ongoing risk</strong> — the danger window is abandoned or revoked-then-idle registrations, not steady-state usage.</li>
       </ul>
-      <div class="callout callout-flux">
-        <span class="callout-label">The self-healing gap</span>
-        <p>A spec-compliant error response looks like <code class="inline">{"error": "invalid_client"}</code>. Well-behaved clients (Claude Code, and the shared MCP TS SDK path Cursor/VS Code inherit) already auto-clear and re-register on exactly that signal. Supabase currently returns <code class="inline">{"message": "Unrecognized client_id"}</code> instead — no <code class="inline">error</code> field — so that built-in recovery never fires. A spec-shaped fix was in draft/CI-green as of Aug 2026; confirm it's shipped before assuming partners need custom handling here.</p>
-      </div>
       <div class="callout callout-implication">
         <span class="callout-label">Design implication</span>
-        <p>Until that fix ships, keep the defensive <code class="inline">STALE_CLIENT_ID</code> detection above. Once it ships, a generic RFC-6749-compliant handler should be enough on its own — this workaround is temporary, not a permanent Supabase quirk.</p>
+        <p>A spec-compliant error response looks like <code class="inline">{"error": "invalid_client"}</code>, which well-behaved OAuth clients already know to auto-clear and re-register on. Supabase currently returns <code class="inline">{"message": "Unrecognized client_id"}</code> instead — no <code class="inline">error</code> field — so that built-in recovery never fires. Keep the defensive <code class="inline">STALE_CLIENT_ID</code> string-matching above rather than relying on a generic RFC-6749-compliant handler alone.</p>
       </div>
       <div class="callout callout-note">
         <span class="callout-label">Manual recovery for testing</span>
         <p><code class="inline">claude mcp logout supabase</code> then <code class="inline">claude mcp login supabase</code>. <code class="inline">login</code> alone is not enough — it preserves the existing registration when the redirect URI/port haven't changed, which just reproduces the failure.</p>
       </div>
 
-      <div class="callout callout-implication">
-        <span class="callout-label">Confirmed — Sept 2026, dashboard inspection</span>
-        <p>A DCR-registered client shows up in the org's Supabase dashboard under <strong>Authorized apps</strong> (a per-org list of grants), never under any "Published OAuth Apps" list — because registration happened with no authenticated Supabase session attached at all. There is no confirmed self-service way to delete the underlying <code class="inline">client_id</code> from a dashboard. The only two levers a partner actually has are the reaper cron above (automatic, targets abandoned or revoked-then-idle registrations, not on-demand) and <code class="inline">POST /v1/oauth/revoke</code> (kills a token, not the registration itself). This matters at partner scale specifically because every customer's authorization shares the one <code class="inline">client_id</code> your backend registered once — the reaper hitting it is a single point of failure for every connected customer at once, not a per-customer risk.</p>
-      </div>
-
-      <h3 id="unconfirmed">What's still unconfirmed</h3>
-      <ul class="plain">
-        <li><strong>Refresh token lifetime.</strong> No documented number for this OAuth 2.1 server — test empirically rather than assuming an idle-timeout pattern.</li>
-        <li><strong>CIMD as a longer-term fix.</strong> Would remove the reaping problem entirely by making the client_id a URL instead of a stored row. Client support today is partial; Supabase's own attempt was blocked over an SSRF concern.</li>
-        <li><strong>Local/self-hosted OAuth.</strong> Doesn't exist yet — local MCP is open by default. A resource-server implementation is in early POC.</li>
-        <li><strong>A <code class="inline">jwt-bearer</code> grant path.</strong> Live discovery lists <code class="inline">urn:ietf:params:oauth:grant-type:jwt-bearer</code> and an <code class="inline">urn:ietf:params:oauth:grant-profile:id-jag</code> profile in <code class="inline">grant_types_supported</code> — a mechanism for getting a token from a pre-trusted JWT assertion without the interactive browser step. Not documented anywhere, not exercised by this guide's flow, and we don't know what assertion format or trust source it expects.</li>
-      </ul>
     </section>
 
     <section id="testing-checklist">
@@ -921,7 +896,7 @@ main().catch((err) => {
         <li><span class="check-num">2</span><span>The consent screen appears and only succeeds for an org owner/admin.</span></li>
         <li><span class="check-num">3</span><span>Token exchange succeeds and a Supabase MCP tool call round-trips end to end.</span></li>
         <li><span class="check-num">4</span><span>Manually mangle the saved client credentials file and confirm the script detects the stale-client_id error and re-registers.</span></li>
-        <li><span class="check-num">5</span><span>Watch for the SDK's known 406 issue — rule out the transport before blaming this auth code.</span></li>
+        <li><span class="check-num">5</span><span>If tool calls fail unexpectedly, rule out the SDK's HTTP transport version before assuming this auth code is wrong.</span></li>
         <li><span class="check-num">6</span><span>Call the refresh function explicitly and confirm the new refresh token is persisted, not the old one.</span></li>
       </ol>
     </section>
