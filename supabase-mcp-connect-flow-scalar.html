@@ -344,15 +344,14 @@
         <tr><th>Endpoint</th><th>Value</th><th>Source</th></tr>
         <tr><td>MCP server</td><td><code>https://mcp.supabase.com/mcp</code></td><td>Existing docs</td></tr>
         <tr><td>Local dev</td><td><code>http://localhost:54321/mcp</code></td><td>No OAuth today — see §6</td></tr>
-        <tr><td>Protected resource metadata</td><td><code>…/.well-known/oauth-protected-resource/mcp</code></td><td>Slack, security-scoped-tokens thread</td></tr>
-        <tr><td>Authorization server metadata</td><td><code>api.supabase.com/.well-known/oauth-authorization-server</code></td><td>Slack, Pedro Rodrigues</td></tr>
-        <tr><td>Authorize</td><td><code>api.supabase.com/v1/oauth/authorize</code></td><td>Linear AI-767</td></tr>
-        <tr><td>Token</td><td><code>api.supabase.com/v1/oauth/token</code></td><td>Linear AI-767</td></tr>
-        <tr><td>Dynamic Client Registration</td><td><code>api.supabase.com/v1/oauth/register</code></td><td>Linear AI-767</td></tr>
+        <tr><td>Authorize</td><td><code>api.supabase.com/v1/oauth/authorize</code></td><td>Linear AI-767 · matches Supabase's public OAuth integration guide</td></tr>
+        <tr><td>Token</td><td><code>api.supabase.com/v1/oauth/token</code></td><td>Linear AI-767 · matches Supabase's public OAuth integration guide</td></tr>
+        <tr><td>Discovery + registration</td><td><em>discovered at runtime, not a fixed path</em></td><td>Not published by Supabase — see note below</td></tr>
       </table>
       <div class="callout callout-flux">
-        <span class="callout-label">Confirmed stale — Sept 2026</span>
-        <p>Live discovery returns a different <code class="inline">registration_endpoint</code>: <code class="inline">api.supabase.com/platform/oauth/apps/register</code>, not the <code class="inline">v1/oauth/register</code> path above. The code in step 3 is unaffected — it reads this value from the discovery response rather than hardcoding it — but this reference table itself is wrong.</p>
+        <span class="callout-label">Not officially documented — Sept 2026</span>
+        <p>Only <code class="inline">authorize</code> and <code class="inline">token</code> above are public: they match Supabase's own <a href="https://supabase.com/docs/guides/integrations/build-a-supabase-oauth-integration" target="_blank" rel="noopener">published OAuth integration guide</a>, which is a <strong>different, manually-registered</strong> OAuth surface for Management API access — it never mentions MCP and has no dynamic client registration at all.</p>
+        <p>The protected-resource metadata, authorization-server metadata, and DCR <code class="inline">registration_endpoint</code> that make this guide's MCP flow work are <strong>not published anywhere by Supabase</strong>. We confirmed them live during testing (Sept 2026), sourced only from internal Slack/Linear threads otherwise. Deliberately, this guide doesn't list their literal paths as if they were stable API — step 1's code discovers all of it at runtime, per the standard OAuth conventions (RFC 9728 for protected-resource metadata, RFC 8414 for authorization-server metadata), and step 3 reads <code class="inline">registration_endpoint</code> from that response rather than hardcoding it. Treat the exact paths as liable to change without notice; treat the discovery <em>mechanism</em> as the stable part.</p>
       </div>
       <p>Scoping query params (<code class="inline">project_ref</code>, <code class="inline">read_only</code>, <code class="inline">features</code>) live on the <strong>resource URL</strong>, not as OAuth scopes. Whatever you append to the MCP URL is reflected into the discovery call and into the <code class="inline">resource</code> parameter sent to the authorize and token endpoints.</p>
       <div class="callout callout-flux">
@@ -582,9 +581,11 @@ npm install express          # for the local OAuth redirect handler in this exam
 async function discoverOAuthMetadata(mcpServerUrl: string): Promise<OAuthMetadata> {
   const url = new URL(mcpServerUrl)
 
-  // NOTE: Supabase's protected-resource metadata path includes the /mcp
-  // suffix (unlike some other MCP servers). Confirmed via Slack:
-  // https://mcp.supabase.com/.well-known/oauth-protected-resource/mcp
+  // Per RFC 9728, protected-resource metadata lives at this well-known
+  // path relative to the resource's own origin and path — never hardcode
+  // the full URL, since Supabase hasn't published it as a stable path.
+  // Observed in testing: Supabase's version includes the resource's own
+  // path suffix (e.g. /mcp), unlike some other MCP servers.
   const protectedResourceUrl = new URL(
     `/.well-known/oauth-protected-resource${url.pathname}${url.search}`,
     url.origin
