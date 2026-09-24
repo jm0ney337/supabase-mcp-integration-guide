@@ -307,6 +307,7 @@
     <div class="nav-sub"><a class="nav-link" data-target="step-1" tabindex="0">1. OAuth discovery</a></div>
     <div class="nav-sub"><a class="nav-link" data-target="step-2" tabindex="0">2. PKCE parameters</a></div>
     <div class="nav-sub"><a class="nav-link" data-target="step-3" tabindex="0">3. Client registration</a></div>
+    <div class="nav-sub"><a class="nav-link" data-target="manual-oauth-app" tabindex="0">Alt: manual OAuth app</a></div>
     <div class="nav-sub"><a class="nav-link" data-target="step-4" tabindex="0">4. Authorization URL</a></div>
     <div class="nav-sub"><a class="nav-link" data-target="step-5" tabindex="0">5. Callback listener</a></div>
     <div class="nav-sub"><a class="nav-link" data-target="step-6" tabindex="0">6. Token exchange</a></div>
@@ -335,10 +336,10 @@
 
     <section id="connection-requirements">
       <h2><span class="h2-num">1</span> Connection requirements</h2>
-      <p class="tight text-mid">See also: Supabase's own <a href="https://supabase.com/docs/guides/getting-started/mcp" target="_blank" rel="noopener">MCP getting-started docs</a>, which cover client setup for Cursor, VS Code, Claude, ChatGPT, and others.</p>
+      <p class="tight text-mid">See also: Supabase's own <a href="https://supabase.com/docs/guides/ai-tools/mcp" target="_blank" rel="noopener">MCP documentation</a>, which covers client setup for Cursor, VS Code, Claude, ChatGPT, and others, and lists every tool the server exposes (database, edge functions, branching, storage, project/org management, and more) — worth reading alongside this guide to know what's actually callable once you have a token.</p>
       <table>
         <tr><th>Endpoint</th><th>Value</th><th>Source</th></tr>
-        <tr><td>MCP server</td><td><code>https://mcp.supabase.com/mcp</code></td><td><a href="https://supabase.com/docs/guides/getting-started/mcp" target="_blank" rel="noopener">Existing docs</a></td></tr>
+        <tr><td>MCP server</td><td><code>https://mcp.supabase.com/mcp</code></td><td><a href="https://supabase.com/docs/guides/ai-tools/mcp" target="_blank" rel="noopener">Existing docs</a></td></tr>
         <tr><td>Local dev</td><td><code>http://localhost:54321/mcp</code></td><td>No OAuth today — see §5</td></tr>
         <tr><td>Authorize</td><td><code>api.supabase.com/v1/oauth/authorize</code></td><td>Matches Supabase's <a href="https://supabase.com/docs/guides/integrations/build-a-supabase-oauth-integration" target="_blank" rel="noopener">public OAuth integration guide</a></td></tr>
         <tr><td>Token</td><td><code>api.supabase.com/v1/oauth/token</code></td><td>Matches Supabase's <a href="https://supabase.com/docs/guides/integrations/build-a-supabase-oauth-integration" target="_blank" rel="noopener">public OAuth integration guide</a></td></tr>
@@ -347,7 +348,7 @@
       <p>Scoping query params (<code class="inline">project_ref</code>, <code class="inline">read_only</code>, <code class="inline">features</code>) live on the <strong>resource URL</strong>, not as OAuth scopes. Whatever you append to the MCP URL is reflected into the discovery call and into the <code class="inline">resource</code> parameter sent to the authorize and token endpoints.</p>
       <div class="callout callout-note">
         <span class="callout-label">Not every client can do DCR</span>
-        <p><a href="https://supabase.com/docs/guides/getting-started/mcp" target="_blank" rel="noopener">Supabase's docs</a> note this directly: <em>"If your MCP client requires an OAuth client ID and secret (e.g. Azure API Center), you can manually create an OAuth app."</em> If your platform can't perform dynamic registration, create one from your org's dashboard instead and use its fixed <code class="inline">client_id</code>/<code class="inline">client_secret</code> in place of step 3 below.</p>
+        <p><a href="https://supabase.com/docs/guides/ai-tools/mcp" target="_blank" rel="noopener">Supabase's docs</a> note this directly: <em>"If your MCP client requires an OAuth client ID and secret (e.g. Azure API Center), you can manually create an OAuth app."</em> If your platform can't perform dynamic registration, create one from your org's dashboard instead and use its fixed <code class="inline">client_id</code>/<code class="inline">client_secret</code> in place of step 3 below.</p>
       </div>
     </section>
 
@@ -589,6 +590,17 @@ async function getOrRegisterClient(
 }</script>
         <pre><code></code></pre>
       </div>
+
+      <h3 id="manual-oauth-app"><span class="step-tag">ALT</span>Manual OAuth app, instead of DCR</h3>
+      <p class="tight text-mid">Skip this if step 3 works for your platform. Use it instead if your client can't perform dynamic registration at runtime (Supabase's own docs give the example of Azure API Center) — you get a fixed <code class="inline">client_id</code>/<code class="inline">client_secret</code> pair up front instead of registering one dynamically.</p>
+      <ol class="checklist">
+        <li><span class="check-num">1</span><span>Go to your organization's <a href="https://supabase.com/dashboard/org/_/apps" target="_blank" rel="noopener">OAuth apps</a> page in the Supabase dashboard and add a new application.</span></li>
+        <li><span class="check-num">2</span><span>Name it for its purpose (e.g. "Example App MCP").</span></li>
+        <li><span class="check-num">3</span><span>Enter the website URL and callback URL your client expects — the same <code class="inline">redirectUri</code> used everywhere else in this guide.</span></li>
+        <li><span class="check-num">4</span><span>Grant write access to all available scopes, then create the app.</span></li>
+        <li><span class="check-num">5</span><span>Copy the resulting <code class="inline">client_id</code> and <code class="inline">client_secret</code> into your client's config.</span></li>
+      </ol>
+      <p class="tight text-mid">With these in hand, skip <code class="inline">getOrRegisterClient()</code> entirely — read <code class="inline">client_id</code>/<code class="inline">client_secret</code> from your own config instead, and continue from step 4 unchanged.</p>
 
       <h3 id="step-4"><span class="step-tag">04</span>Build the authorization URL</h3>
       <p class="tight text-mid">The <code class="inline">resource</code> param must be the full MCP connection URL, including any scoping query params — not the bare endpoint.</p>
