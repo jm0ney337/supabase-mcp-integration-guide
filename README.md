@@ -18,10 +18,11 @@ of the flow it describes.
   setup/auth end to end and runs one test query through
   `@anthropic-ai/claude-agent-sdk` using the token the backend hands back.
 - [`dashboard/`](dashboard) — Next.js demo UI, a second client of the same
-  backend API. A connectors screen with a "Connect" redirect button, a chat
-  panel (Vercel AI Elements + `@ai-sdk/mcp`) to talk to the connected
-  Supabase project, and a collapsible visualization of the OAuth sequence
-  diagram from the partner guide.
+  backend API. Opens straight onto a chat panel (Vercel AI Elements +
+  `@ai-sdk/mcp`) for talking to the connected Supabase project, with a
+  connectors pane behind the chat box's "+" (using Supabase's official
+  "Connect Supabase" button) and a collapsible visualization of the OAuth
+  sequence diagram from the partner guide.
 - [`VALIDATION.md`](VALIDATION.md) — what in the draft was confirmed live,
   what was corrected, and what's still open.
 - [`supabase-mcp-connect-flow-draft.md`](supabase-mcp-connect-flow-draft.md)

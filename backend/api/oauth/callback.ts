@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // via GET /api/connections/:id, so it works whether this succeeded or not.
   const dashboardUrl = process.env.DASHBOARD_URL
   if (dashboardUrl && connectionId) {
-    res.redirect(302, `${dashboardUrl}/connections/${connectionId}`)
+    res.redirect(302, `${dashboardUrl}/?connection=${encodeURIComponent(connectionId)}`)
     return
   }
 
