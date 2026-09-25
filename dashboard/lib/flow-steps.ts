@@ -1,5 +1,5 @@
-// The five phases of the connect flow, in the same order as the sequence
-// diagram in supabase-mcp-connect-flow-scalar.html (section #sequence-overview).
+// The five phases of the OAuth connect flow: discovery, client
+// registration, the authorize redirect, token exchange, and MCP access.
 export type FlowPhaseId =
   | "discovery"
   | "client-setup"

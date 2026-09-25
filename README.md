@@ -6,11 +6,6 @@ registration, the authorize redirect, token exchange and refresh — plus a
 Next.js dashboard that drives the whole flow from a "Connect" button and
 lets you chat with an agent that has live access to the connected project.
 
-It exists to validate [`supabase-mcp-connect-flow-draft.md`](supabase-mcp-connect-flow-draft.md)
-against production (see [`VALIDATION.md`](VALIDATION.md) for what was
-confirmed, corrected, or found broken) and to give partners something they
-can actually run, not just read.
-
 ![Dashboard, connected and mid-conversation](docs/screenshots/dashboard-conversation.png)
 
 ## How it fits together
@@ -33,7 +28,7 @@ can actually run, not just read.
   deployed as Vercel serverless functions. It owns the entire OAuth
   lifecycle — [`lib/oauth.ts`](backend/lib/oauth.ts) does discovery, PKCE,
   and dynamic client registration (with defensive re-registration around a
-  stale-`client_id` bug found in production, see `VALIDATION.md`);
+  stale-`client_id` bug found in production);
   [`lib/connections.ts`](backend/lib/connections.ts) orchestrates that into
   the operations the API needs — start, complete, refresh, revoke — and
   [`lib/db.ts`](backend/lib/db.ts) persists connection state to its own
@@ -103,10 +98,9 @@ npm run dev               # http://localhost:3002
 Open `http://localhost:3002`, click the **+** in the chat box (or
 **Connectors** in the header) and hit **Connect Supabase**. That redirects
 your browser to Supabase's consent screen — you'll need to be an **owner or
-admin** of the org you're authorizing (see constraint #2 in the draft; the
-backend doesn't attempt to work around this, it's a hard requirement of the
-current flow). Approve it and you land back in the dashboard, connected,
-ready to ask about the project.
+admin** of the org you're authorizing; the backend doesn't attempt to work
+around this, it's a hard requirement of the current flow. Approve it and
+you land back in the dashboard, connected, ready to ask about the project.
 
 If `DASHBOARD_URL` isn't set on the backend, the OAuth callback falls back
 to rendering a plain "Connected" page instead of redirecting into the
@@ -124,15 +118,3 @@ project — create one, apply [`backend/db/schema.sql`](backend/db/schema.sql)
 to it, and point `SUPABASE_URL`/`SUPABASE_SECRET_KEY` at it. It's separate
 from whatever Supabase project you actually authorize the MCP connection
 *to*, and separate from your Anthropic account.
-
-## Other docs in this repo
-
-- [`VALIDATION.md`](VALIDATION.md) — what in the draft was confirmed live
-  against production, what was corrected, and where production disagrees
-  with the spec — including `/v1/oauth/revoke`, which isn't RFC
-  7009-shaped and will 400 a spec-compliant request.
-- [`supabase-mcp-connect-flow-draft.md`](supabase-mcp-connect-flow-draft.md)
-  — the original draft this repo validates, unmodified.
-- [`supabase-mcp-connect-flow-scalar.html`](supabase-mcp-connect-flow-scalar.html)
-  — a partner-facing, Scalar-styled write-up of the flow, meant to be read
-  standalone rather than alongside this code.

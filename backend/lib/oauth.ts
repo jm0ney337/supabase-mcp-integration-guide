@@ -1,6 +1,6 @@
 // Generic-OAuth-2.1-plus-Supabase-specific-quirks core. Nothing in here knows
-// about HTTP routing, our own database schema, or the Claude Agent SDK — see
-// VALIDATION.md and the plan for why this stays isolated from the API layer.
+// about HTTP routing, our own database schema, or any particular agent SDK —
+// kept isolated from the API layer so it can be reused by any frontend.
 import { randomBytes, createHash } from "node:crypto"
 
 export type OAuthMetadata = {
@@ -25,9 +25,9 @@ export type TokenResponse = {
 }
 
 /** Thrown when Supabase rejects a client_id with its non-spec-shaped
- * `{"message":"Unrecognized client_id"}` body (see VALIDATION.md / draft
- * §6.3). Callers should wipe the stored registration and re-register from
- * scratch, not retry the same client_id. */
+ * `{"message":"Unrecognized client_id"}` body. Callers should wipe the
+ * stored registration and re-register from scratch, not retry the same
+ * client_id. */
 export class StaleClientIdError extends Error {
   constructor() {
     super("STALE_CLIENT_ID")
