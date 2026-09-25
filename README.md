@@ -63,12 +63,35 @@ including which agent SDK ends up calling the tools.
 | ![Ready to chat](docs/screenshots/dashboard-ready.png)      | ![Connectors pane](docs/screenshots/connectors-dialog.png)   |
 | Opens straight onto the chat, with a live stepper for the connect flow | The "+" in the chat box opens this — connect, disconnect, see what's live |
 
+## Environment variables
+
+Nothing in either `.env.example` is pre-filled — every value below is yours
+to create.
+
+**`backend/.env`**
+
+| Variable              | Where it comes from                                                                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`         | Create a new, empty Supabase project for the backend's own bookkeeping (see [Storage](#storage) below) — Project Settings → API → Project URL.                     |
+| `SUPABASE_SECRET_KEY`  | Same project — Project Settings → API Keys → the **secret key** (`sb_secret_...`). Not the anon/publishable key, and not the OAuth `client_secret` from DCR.       |
+| `BACKEND_API_TOKEN`    | A shared secret you invent: `openssl rand -hex 32`. Whatever it is, the same value goes in `dashboard/.env`.                                                        |
+| `OAUTH_REDIRECT_URI`   | Left as the localhost default for local dev; already set in `.env.example`.                                                                                        |
+| `DASHBOARD_URL`        | Left as the localhost default for local dev; already set in `.env.example`.                                                                                        |
+
+**`dashboard/.env`**
+
+| Variable              | Where it comes from                                                                                     |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `BACKEND_URL`          | Left as the localhost default; already set in `.env.example`.                                            |
+| `BACKEND_API_TOKEN`    | Must be the **exact same value** you generated for `backend/.env` above.                                 |
+| `ANTHROPIC_API_KEY`    | [console.anthropic.com](https://console.anthropic.com/settings/keys) → Create Key.                        |
+
 ## Running it
 
 ```bash
 # Backend
 cd backend && npm install
-cp .env.example .env   # fill in SUPABASE_SECRET_KEY, BACKEND_API_TOKEN, and DASHBOARD_URL
+cp .env.example .env   # fill in SUPABASE_URL, SUPABASE_SECRET_KEY, and BACKEND_API_TOKEN
 npx vercel dev            # http://localhost:3000
 
 # Dashboard, in another terminal
