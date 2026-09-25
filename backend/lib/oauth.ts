@@ -199,20 +199,29 @@ export function refreshAccessToken(
   return postToken(metadata, params, clientId, clientSecret)
 }
 
-/** Best-effort revoke. Not part of the discovered metadata document, so the
- * endpoint is derived from the issuer (draft §2.3 / §6.3). */
+/** Revoke a connection's refresh token. Not part of the discovered metadata
+ * document, so the endpoint is derived from the issuer (draft §2.3 / §6.3).
+ *
+ * This endpoint is not RFC 7009-shaped, confirmed against production: it
+ * wants a JSON body, names the parameter `refresh_token` rather than the
+ * spec's `token` (and rejects `token` as an unrecognized key), and takes
+ * the client credentials in the body rather than via Basic auth. Sending
+ * the spec's form encoding gets a 400 "expected object, received undefined". */
 export async function revokeToken(
-  token: string,
+  refreshToken: string,
   metadata: OAuthMetadata,
   clientId: string,
   clientSecret: string | undefined
 ): Promise<void> {
   const revokeUrl = new URL("/v1/oauth/revoke", metadata.issuer)
-  const params = new URLSearchParams({ token, client_id: clientId })
   const res = await fetch(revokeUrl.toString(), {
     method: "POST",
-    headers: authHeaders(clientId, clientSecret),
-    body: params.toString(),
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    }),
   })
   if (!res.ok) {
     throw new Error(`Revoke failed: ${res.status} - ${await res.text()}`)

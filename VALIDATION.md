@@ -106,6 +106,37 @@ example](https://github.com/supabase/supabase/tree/master/examples/edge-function
   Not previously referenced anywhere in this project; now used in the HTML
   guide's step 4.
 
+## Later findings (Sept 2026) — the revoke endpoint is not RFC 7009-shaped
+
+Found by building the dashboard UI: `POST https://api.supabase.com/v1/oauth/revoke`
+rejects a spec-compliant revocation request. Confirmed directly against
+production, 2026-09-25:
+
+- **Form encoding is rejected.** RFC 7009 §2.1 specifies
+  `application/x-www-form-urlencoded`. Sending that returns
+  `400 {"message":": Invalid input: expected object, received undefined"}` —
+  the endpoint only parses a JSON body.
+- **The spec's `token` parameter is rejected** as an unrecognized key. The
+  endpoint wants `refresh_token` specifically, so there is no way to revoke
+  by access token, and no `token_type_hint` support.
+- **Client credentials must go in the body**, as `client_id` + `client_secret`,
+  rather than the HTTP Basic auth the token endpoint accepts.
+
+So the working request is
+`{"client_id": "...", "client_secret": "...", "refresh_token": "..."}` as JSON.
+None of this is discoverable: the endpoint isn't in the authorization-server
+metadata document (no `revocation_endpoint`), so its path *and* its shape both
+have to be known in advance. A partner following RFC 7009 gets a 400 with an
+error message that doesn't hint at any of the three deviations.
+
+Worth asking the eng team: is this intentional, and can
+`revocation_endpoint` be added to the metadata document?
+
+Second-order lesson for the reference implementation: a revoke that throws
+must not block clearing local token state, or a failed revoke strands the
+connection as `authorized` with no way for the user to disconnect. Our
+`revokeConnection()` now logs and proceeds.
+
 ## Simplifications knowingly introduced in this implementation
 
 Not corrections to the draft — just choices made for a validation harness

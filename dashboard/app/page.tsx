@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button"
 import type { Connection } from "@/lib/backend"
 import { useCallback, useEffect, useState } from "react"
 
+function formatExpiry(iso: string): string {
+  const minutes = Math.round((new Date(iso).getTime() - Date.now()) / 60_000)
+  if (minutes < 1) return "now"
+  if (minutes < 60) return `in ${minutes}m`
+  return `in ${Math.round(minutes / 60)}h`
+}
+
 export default function Dashboard() {
   const [connections, setConnections] = useState<Connection[]>([])
   // Set by the backend's OAuth callback redirect, so a connection that just
@@ -18,6 +25,7 @@ export default function Dashboard() {
   const [loaded, setLoaded] = useState(false)
   const [connectorsOpen, setConnectorsOpen] = useState(false)
   const [busy, setBusy] = useState<"connect" | "refresh" | "revoke" | null>(null)
+  const [expiresAt, setExpiresAt] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     setJustConnectedId(new URLSearchParams(window.location.search).get("connection"))
@@ -62,26 +70,20 @@ export default function Dashboard() {
     if (!connection) return
     setBusy("refresh")
     try {
-      await fetch(`/api/connections/${connection.id}/refresh`, { method: "POST" })
+      const res = await fetch(`/api/connections/${connection.id}/refresh`, { method: "POST" })
+      const data = await res.json()
+      if (res.ok) setExpiresAt(data.expiresAt ?? null)
       await reload()
     } finally {
       setBusy(null)
     }
   }
 
-  async function handleRevoke() {
-    if (!connection) return
-    await revokeAll([connection.id])
-  }
-
-  /** Disconnecting the connector revokes every live connection for it —
-   * revoking only the newest would just fall through to an older one, which
-   * makes it look like disconnect did nothing. */
+  /** Disconnecting clears every connection that isn't already revoked —
+   * revoking just the newest would fall through to an older one, and leaving
+   * errored rows behind would keep them cluttering the connector list. */
   async function handleDisconnect() {
-    await revokeAll(live.map((c) => c.id))
-  }
-
-  async function revokeAll(ids: string[]) {
+    const ids = connections.filter((c) => c.status !== "revoked").map((c) => c.id)
     if (ids.length === 0) return
     setBusy("revoke")
     try {
@@ -89,6 +91,7 @@ export default function Dashboard() {
       // Drop ?connection= so a revoked one stops being pinned as active.
       window.history.replaceState(null, "", "/")
       setJustConnectedId(null)
+      setExpiresAt(null)
       await reload()
     } finally {
       setBusy(null)
@@ -137,14 +140,36 @@ export default function Dashboard() {
               {connection.errorMessage && (
                 <p className="text-destructive text-xs">{connection.errorMessage}</p>
               )}
-              <div className="flex gap-2 pt-1">
+
+              <div className="space-y-1.5 pt-1">
                 <Button disabled={busy !== null} onClick={handleRefresh} size="sm" variant="secondary">
-                  {busy === "refresh" ? "Refreshing…" : "Refresh token"}
+                  {busy === "refresh" ? "Refreshing…" : "Refresh access token"}
                 </Button>
-                <Button disabled={busy !== null} onClick={handleRevoke} size="sm" variant="outline">
-                  {busy === "revoke" ? "Revoking…" : "Revoke"}
-                </Button>
+                <p className="text-muted-foreground text-xs">
+                  Trades the refresh token for a new access token, no re-consent. The
+                  agent does this automatically when one expires — this button just
+                  forces it early so you can watch it happen.
+                  {expiresAt && (
+                    <>
+                      {" "}
+                      Current token expires{" "}
+                      <span className="text-foreground">{formatExpiry(expiresAt)}</span>.
+                    </>
+                  )}
+                </p>
               </div>
+
+              <p className="pt-1 text-muted-foreground text-xs">
+                To disconnect, open{" "}
+                <button
+                  className="text-foreground underline underline-offset-2"
+                  onClick={() => setConnectorsOpen(true)}
+                  type="button"
+                >
+                  Connectors
+                </button>{" "}
+                — that hands the token back to Supabase and ends the grant.
+              </p>
             </>
           )}
         </div>

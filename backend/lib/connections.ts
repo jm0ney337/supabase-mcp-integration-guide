@@ -146,6 +146,15 @@ export async function forceRefresh(id: string): Promise<{ accessToken: string; e
       await db.updateConnection(id, { status: "error", error_message: "Client registration went stale during refresh. Re-run POST /api/connections." })
       throw new ConnectionError("STALE_CLIENT_ID", "stale_client")
     }
+    // The token endpoint answered and refused (spent/revoked refresh token,
+    // e.g. "No such refresh token found"). The grant is gone, so stop
+    // reporting the connection as authorized — otherwise it sits there
+    // looking usable forever. Network-level failures fall through untouched
+    // so a blip doesn't force a re-auth.
+    const message = err instanceof Error ? err.message : String(err)
+    if (message.startsWith("Token request failed:")) {
+      await db.updateConnection(id, { status: "error", error_message: message })
+    }
     throw err
   }
 }
@@ -155,11 +164,23 @@ export async function revokeConnection(id: string): Promise<void> {
   if (!connection) throw new ConnectionError("Connection not found", "not_found")
 
   const clientRow = await db.getOAuthClient(connection.redirect_uri)
-  const tokenToRevoke = connection.refresh_token ?? connection.access_token
 
-  if (clientRow && tokenToRevoke) {
-    const { metadata } = await oauth.discoverOAuthMetadata(connection.mcp_url)
-    await oauth.revokeToken(tokenToRevoke, metadata, clientRow.client_id, clientRow.client_secret ?? undefined)
+  // Best-effort, and deliberately non-fatal: the endpoint only accepts a
+  // refresh_token, and if Supabase rejects the call we still drop our copy
+  // of the tokens. Letting this throw would strand the connection as
+  // "authorized" with no way for the user to ever disconnect it.
+  if (clientRow && connection.refresh_token) {
+    try {
+      const { metadata } = await oauth.discoverOAuthMetadata(connection.mcp_url)
+      await oauth.revokeToken(
+        connection.refresh_token,
+        metadata,
+        clientRow.client_id,
+        clientRow.client_secret ?? undefined
+      )
+    } catch (err) {
+      console.warn(`Remote revoke failed for ${id}; clearing local tokens anyway:`, err)
+    }
   }
 
   await db.updateConnection(id, { status: "revoked", access_token: null, refresh_token: null })
