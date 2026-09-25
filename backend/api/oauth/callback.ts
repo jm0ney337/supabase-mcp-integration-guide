@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  res.status(200).send(htmlPage("Connected", "You can close this tab and return to the terminal."))
+  res.status(200).send(htmlPage("Connected", "You can close this tab."))
 }
 
 function htmlPage(title: string, message: string): string {

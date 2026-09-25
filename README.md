@@ -12,12 +12,9 @@ of the flow it describes.
   authorize redirect, token exchange, and refresh. Exposes a small REST API
   (`/api/connections`, `/api/oauth/callback`, `/api/connections/:id/token`,
   `/api/connections/:id/refresh`) that has zero knowledge of MCP tool-calling
-  or the Claude Agent SDK — any frontend (this repo's TUI today, a TanStack
-  app later) drives the same endpoints.
-- [`tui/`](tui) — local CLI, the first client of that API. Drives
-  setup/auth end to end and runs one test query through
-  `@anthropic-ai/claude-agent-sdk` using the token the backend hands back.
-- [`dashboard/`](dashboard) — Next.js demo UI, a second client of the same
+  or which agent SDK is on the other end — any frontend can drive the same
+  endpoints (`dashboard/` today, a future TanStack app tomorrow).
+- [`dashboard/`](dashboard) — Next.js demo UI, the reference client of that
   backend API. Opens straight onto a chat panel (Vercel AI Elements +
   `@ai-sdk/mcp`) for talking to the connected Supabase project, with a
   connectors pane behind the chat box's "+" (using Supabase's official
@@ -40,28 +37,24 @@ See `backend/db/schema.sql`.
 ```bash
 # Backend
 cd backend && npm install
-cp .env.example .env   # fill in SUPABASE_SECRET_KEY and BACKEND_API_TOKEN
+cp .env.example .env   # fill in SUPABASE_SECRET_KEY, BACKEND_API_TOKEN, and DASHBOARD_URL
 npx vercel dev           # http://localhost:3000
 
-# TUI, in another terminal
-cd tui && npm install
-cp .env.example .env    # BACKEND_API_TOKEN must match the backend's
-npm start
-
-# Dashboard, in a third terminal
+# Dashboard, in another terminal
 cd dashboard && npm install
 cp .env.example .env    # BACKEND_API_TOKEN must match the backend's; add ANTHROPIC_API_KEY
 npm run dev              # http://localhost:3002
 ```
 
-To have the OAuth callback land back on the dashboard instead of the TUI's
-plain-text success page, also set `DASHBOARD_URL=http://localhost:3002` in
-the backend's `.env` before running `vercel dev`.
+Clicking Connect in the dashboard opens a browser to Supabase's consent
+screen — you'll need to be an **owner or admin** of the org you're
+authorizing (see constraint #2 in the draft; the backend doesn't attempt to
+work around this, it's a hard requirement of the current flow).
 
-The TUI will open a browser to Supabase's consent screen — you'll need to
-be an **owner or admin** of the org you're authorizing (see constraint #2 in
-the draft; the backend doesn't attempt to work around this, it's a hard
-requirement of the current flow).
+If `DASHBOARD_URL` isn't set on the backend, the OAuth callback falls back
+to rendering a plain "Connected" page instead of redirecting back into the
+dashboard — useful when driving the backend from something other than
+`dashboard/`.
 
 Deploying the backend to Vercel is a separate step (`vercel login` /
 `vercel deploy` from `backend/`) — done with an explicit confirmation since

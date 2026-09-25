@@ -1,8 +1,8 @@
-// The one place OAuth and the agent meet, ported to the AI SDK's own MCP
-// client (@ai-sdk/mcp) instead of the Claude Agent SDK the TUI uses (see
-// tui/src/agent.ts) — this is what lets the chat UI use AI Elements +
-// useChat natively. Always fetches a fresh token per request, same as
-// tui/src/index.ts's repl() does before every command.
+// The one place OAuth and the agent meet: uses the AI SDK's own MCP client
+// (@ai-sdk/mcp) rather than the Claude Agent SDK, so the chat UI can use AI
+// Elements + useChat natively. Fetches a fresh token per request rather
+// than caching one, so a long conversation survives token expiry via the
+// backend's own refresh logic.
 import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from "ai"
 import { anthropic } from "@ai-sdk/anthropic"
 import { createMCPClient } from "@ai-sdk/mcp"

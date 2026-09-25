@@ -1,6 +1,5 @@
-// Server-only thin client for the OAuth backend (backend/api/*). Mirrors
-// tui/src/backend-client.ts's request<T> wrapper — same backend, same
-// contract, just called from Next.js route handlers instead of a REPL.
+// Server-only thin client for the OAuth backend (backend/api/*), called from
+// Next.js route handlers so the browser never sees BACKEND_API_TOKEN.
 import "server-only"
 
 export type ConnectionStatus = "pending" | "authorized" | "error" | "revoked"
