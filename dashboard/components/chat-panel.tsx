@@ -11,10 +11,14 @@ import {
   PromptInput,
   PromptInputBody,
   PromptInputFooter,
+  PromptInputHeader,
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input"
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/components/ai-elements/tool"
+import { ConnectorMenu } from "@/components/connector-menu"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport, type UIMessage } from "ai"
 import { DatabaseIcon } from "lucide-react"
@@ -91,6 +95,13 @@ export function ChatPanel({ connectionId, disabled }: { connectionId: string; di
         }}
       >
         <PromptInputBody>
+          <PromptInputHeader className="justify-start gap-2">
+            <ConnectorMenu />
+            <Badge className="gap-1.5 font-normal" variant={disabled ? "outline" : "secondary"}>
+              <span className={cn("size-1.5 rounded-full", disabled ? "bg-muted-foreground" : "bg-emerald-500")} />
+              {disabled ? "No connector" : "Supabase"}
+            </Badge>
+          </PromptInputHeader>
           <PromptInputTextarea
             disabled={disabled}
             placeholder={disabled ? "Connect Supabase to start chatting" : "Ask about this Supabase project…"}
