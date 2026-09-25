@@ -17,6 +17,11 @@ of the flow it describes.
 - [`tui/`](tui) — local CLI, the first client of that API. Drives
   setup/auth end to end and runs one test query through
   `@anthropic-ai/claude-agent-sdk` using the token the backend hands back.
+- [`dashboard/`](dashboard) — Next.js demo UI, a second client of the same
+  backend API. A connectors screen with a "Connect" redirect button, a chat
+  panel (Vercel AI Elements + `@ai-sdk/mcp`) to talk to the connected
+  Supabase project, and a collapsible visualization of the OAuth sequence
+  diagram from the partner guide.
 - [`VALIDATION.md`](VALIDATION.md) — what in the draft was confirmed live,
   what was corrected, and what's still open.
 - [`supabase-mcp-connect-flow-draft.md`](supabase-mcp-connect-flow-draft.md)
@@ -41,7 +46,16 @@ npx vercel dev           # http://localhost:3000
 cd tui && npm install
 cp .env.example .env    # BACKEND_API_TOKEN must match the backend's
 npm start
+
+# Dashboard, in a third terminal
+cd dashboard && npm install
+cp .env.example .env    # BACKEND_API_TOKEN must match the backend's; add ANTHROPIC_API_KEY
+npm run dev              # http://localhost:3002
 ```
+
+To have the OAuth callback land back on the dashboard instead of the TUI's
+plain-text success page, also set `DASHBOARD_URL=http://localhost:3002` in
+the backend's `.env` before running `vercel dev`.
 
 The TUI will open a browser to Supabase's consent screen — you'll need to
 be an **owner or admin** of the org you're authorizing (see constraint #2 in

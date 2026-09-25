@@ -18,6 +18,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const result = await completeAuthorization(state, code)
+  const connectionId = result.connectionId
+
+  // If a dashboard is configured, hand the browser back to it instead of
+  // rendering a static page — the dashboard reads the final status itself
+  // via GET /api/connections/:id, so it works whether this succeeded or not.
+  const dashboardUrl = process.env.DASHBOARD_URL
+  if (dashboardUrl && connectionId) {
+    res.redirect(302, `${dashboardUrl}/connections/${connectionId}`)
+    return
+  }
+
   if (!result.ok) {
     res.status(400).send(htmlPage("Connection failed", result.error ?? "Unknown error"))
     return
