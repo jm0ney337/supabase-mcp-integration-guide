@@ -3,7 +3,7 @@
 // tui/src/agent.ts) — this is what lets the chat UI use AI Elements +
 // useChat natively. Always fetches a fresh token per request, same as
 // tui/src/index.ts's repl() does before every command.
-import { streamText, convertToModelMessages, type UIMessage } from "ai"
+import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from "ai"
 import { anthropic } from "@ai-sdk/anthropic"
 import { createMCPClient } from "@ai-sdk/mcp"
 import { getConnection, getConnectionToken } from "@/lib/backend"
@@ -46,6 +46,9 @@ export async function POST(req: Request) {
       "You are a helpful assistant answering questions about the user's connected Supabase project. Use the available MCP tools to inspect the project (tables, config, logs, etc.) before answering factual questions. Be concise.",
     messages: await convertToModelMessages(messages, { tools }),
     tools,
+    // Without this the run stops at the first step — the model emits its tool
+    // calls and never gets a turn to write the answer from the results.
+    stopWhen: stepCountIs(12),
     onFinish: async () => {
       await mcpClient.close()
     },

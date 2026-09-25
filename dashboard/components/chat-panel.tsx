@@ -18,34 +18,38 @@ import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/componen
 import { ConnectorMenu } from "@/components/connector-menu"
 import { Badge } from "@/components/ui/badge"
 import type { Connection } from "@/lib/backend"
-import { useChat } from "@ai-sdk/react"
-import { DefaultChatTransport, type UIMessage } from "ai"
+import type { UseChatHelpers } from "@ai-sdk/react"
+import type { ChatStatus, UIMessage } from "ai"
 import { DatabaseIcon } from "lucide-react"
-import { useMemo } from "react"
 
 function isToolPart(part: UIMessage["parts"][number]) {
   return part.type === "dynamic-tool" || part.type.startsWith("tool-")
 }
 
 export function ChatPanel({
-  connection,
+  ready,
   connections,
   loading,
+  messages,
+  sendMessage,
+  status,
+  error,
   onOpenConnectors,
 }: {
-  connection?: Connection
+  ready: boolean
   connections: Connection[]
   loading?: boolean
+  messages: UIMessage[]
+  sendMessage: UseChatHelpers<UIMessage>["sendMessage"]
+  status: ChatStatus
+  error?: Error
   onOpenConnectors: () => void
 }) {
-  const connectionId = connection?.id
-  const ready = connection?.status === "authorized"
-
-  const transport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/chat", body: { connectionId } }),
-    [connectionId]
-  )
-  const { messages, sendMessage, status, error } = useChat({ transport })
+  // Only until the assistant's message appears — after that the streaming
+  // text and the tool cards are their own progress indicators.
+  const showThinking =
+    (status === "submitted" || status === "streaming") &&
+    messages.at(-1)?.role !== "assistant"
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -97,6 +101,7 @@ export function ChatPanel({
               </MessageContent>
             </Message>
           ))}
+          {showThinking && <Thinking />}
           {error && <p className="text-destructive text-xs">{error.message}</p>}
         </ConversationContent>
         <ConversationScrollButton />
@@ -135,15 +140,24 @@ export function ChatPanel({
                   </Badge>
                 ))}
             </PromptInputTools>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs">
-                {status === "submitted" || status === "streaming" ? "Thinking…" : ""}
-              </span>
-              <PromptInputSubmit disabled={!ready} status={status} />
-            </div>
+            <PromptInputSubmit disabled={!ready} status={status} />
           </PromptInputFooter>
         </PromptInput>
       </div>
+    </div>
+  )
+}
+
+function Thinking() {
+  return (
+    <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+      {[0, 150, 300].map((delay) => (
+        <span
+          className="size-1.5 animate-bounce rounded-full bg-current"
+          key={delay}
+          style={{ animationDelay: `${delay}ms` }}
+        />
+      ))}
     </div>
   )
 }

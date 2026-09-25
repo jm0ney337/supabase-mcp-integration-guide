@@ -2,11 +2,13 @@
 
 import { ChatPanel } from "@/components/chat-panel"
 import { ConnectorsDialog } from "@/components/connectors-dialog"
-import { FlowVisualization } from "@/components/flow-visualization"
+import { FlowDiagram, type ToolEvent } from "@/components/flow-diagram"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Connection } from "@/lib/backend"
-import { useCallback, useEffect, useState } from "react"
+import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport, type UIMessage } from "ai"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 function formatExpiry(iso: string): string {
   const minutes = Math.round((new Date(iso).getTime() - Date.now()) / 60_000)
@@ -49,6 +51,35 @@ export default function Dashboard() {
   // listConnections() returns newest first, so [0] is the most recent.
   const connection = connections.find((c) => c.id === justConnectedId) ?? live[0]
   const activeConnection = connection?.status === "authorized" ? connection : undefined
+
+  const transport = useMemo(
+    () => new DefaultChatTransport({ api: "/api/chat", body: { connectionId: activeConnection?.id } }),
+    [activeConnection?.id]
+  )
+  const { messages, sendMessage, status, error } = useChat({ transport })
+
+  // The MCP leg of the diagram is driven by the same stream the chat renders.
+  const toolEvents = useMemo<ToolEvent[]>(
+    () =>
+      messages.flatMap((message) =>
+        message.parts
+          .filter((part) => part.type === "dynamic-tool" || part.type.startsWith("tool-"))
+          .map((part, i) => {
+            const tool = part as UIMessage["parts"][number] & {
+              type: string
+              state: string
+              toolCallId?: string
+              toolName?: string
+            }
+            return {
+              id: tool.toolCallId ?? `${message.id}-${i}`,
+              name: tool.toolName ?? tool.type.replace(/^tool-/, ""),
+              state: tool.state,
+            }
+          })
+      ),
+    [messages]
+  )
 
   async function handleConnect() {
     setBusy("connect")
@@ -109,15 +140,19 @@ export default function Dashboard() {
         </header>
         <div className="min-h-0 flex-1">
           <ChatPanel
-            connection={activeConnection}
             connections={live}
+            error={error}
             loading={!loaded}
+            messages={messages}
             onOpenConnectors={() => setConnectorsOpen(true)}
+            ready={Boolean(activeConnection)}
+            sendMessage={sendMessage}
+            status={status}
           />
         </div>
       </section>
 
-      <aside className="hidden w-[340px] shrink-0 flex-col gap-6 overflow-y-auto border-l p-5 lg:flex">
+      <aside className="hidden w-[400px] shrink-0 flex-col gap-6 overflow-y-auto border-l p-5 lg:flex">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-sm">Connection</h2>
@@ -174,10 +209,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        <FlowVisualization
-          errorMessage={connection?.errorMessage}
-          status={connection?.status ?? "pending"}
-        />
+        <FlowDiagram status={connection?.status} toolEvents={toolEvents} />
       </aside>
 
       <ConnectorsDialog
