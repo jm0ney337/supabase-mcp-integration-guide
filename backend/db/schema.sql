@@ -1,6 +1,6 @@
--- Already applied to the mcp-oauth-backend Supabase project (ref
--- bbdpvukyhgybtuxhzhnx) via the Supabase MCP tools. Kept here as the
--- source of truth / for reprovisioning elsewhere.
+-- Apply this to whatever Supabase project you're using for the backend's
+-- own bookkeeping (see SUPABASE_URL in backend/.env.example) — separate
+-- from any project you'll authorize the MCP connection to.
 
 create table oauth_clients (
   redirect_uri text primary key,

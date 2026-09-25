@@ -96,10 +96,11 @@ it publishes a public URL, not part of local iteration.
 
 ## Storage
 
-The backend's own connection/client state lives in a dedicated Supabase
-project (`mcp-oauth-backend`, ref `bbdpvukyhgybtuxhzhnx`) — separate from
-whatever Supabase project you actually authorize the MCP connection *to*.
-See [`backend/db/schema.sql`](backend/db/schema.sql).
+The backend's own connection/client state lives in its own Supabase
+project — create one, apply [`backend/db/schema.sql`](backend/db/schema.sql)
+to it, and point `SUPABASE_URL`/`SUPABASE_SECRET_KEY` at it. It's separate
+from whatever Supabase project you actually authorize the MCP connection
+*to*, and separate from your Anthropic account.
 
 ## Other docs in this repo
 

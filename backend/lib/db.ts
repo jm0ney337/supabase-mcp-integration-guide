@@ -27,9 +27,9 @@ function db(): SupabaseClient {
   if (client) return client
   const url = process.env.SUPABASE_URL
   // Secret key (sb_secret_...), not the legacy service_role JWT — see
-  // Settings > API Keys on the mcp-oauth-backend project. Either format
-  // works as a drop-in with createClient(), but secret keys are Supabase's
-  // current recommendation (service_role JWTs are being phased out).
+  // Settings > API Keys on your Supabase project. Either format works as a
+  // drop-in with createClient(), but secret keys are Supabase's current
+  // recommendation (service_role JWTs are being phased out).
   // Bypasses the RLS-with-no-policies lockdown on oauth_clients/mcp_connections
   // (backend/db/schema.sql) — never expose this to a client.
   const key = process.env.SUPABASE_SECRET_KEY
