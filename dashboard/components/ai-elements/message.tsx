@@ -11,6 +11,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
@@ -28,7 +36,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Streamdown } from "streamdown";
+import { Streamdown, type LinkSafetyModalProps } from "streamdown";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];
@@ -323,6 +331,15 @@ export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
 const streamdownPlugins = { cjk, code, math, mermaid };
 
+// Streamdown asks before opening a link from model output. Its stock modal
+// stretches the full width of the pane, so render our own dialog instead.
+const linkSafety = {
+  enabled: true,
+  renderModal: ({ isOpen, onClose, onConfirm, url }: LinkSafetyModalProps) => (
+    <LinkSafetyDialog isOpen={isOpen} onClose={onClose} onConfirm={onConfirm} url={url} />
+  ),
+};
+
 export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (
     <Streamdown
@@ -330,6 +347,7 @@ export const MessageResponse = memo(
         "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className
       )}
+      linkSafety={linkSafety}
       plugins={streamdownPlugins}
       {...props}
     />
@@ -340,6 +358,35 @@ export const MessageResponse = memo(
 );
 
 MessageResponse.displayName = "MessageResponse";
+
+function LinkSafetyDialog({ isOpen, onClose, onConfirm, url }: LinkSafetyModalProps) {
+  return (
+    <Dialog onOpenChange={(open) => !open && onClose()} open={isOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Open external link?</DialogTitle>
+          <DialogDescription>
+            This link came from the model&apos;s response, not from you.
+          </DialogDescription>
+        </DialogHeader>
+        <p className="break-all rounded-md bg-muted px-3 py-2 font-mono text-xs">{url}</p>
+        <DialogFooter>
+          <Button onClick={onClose} variant="outline">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+          >
+            Open link
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export type MessageToolbarProps = ComponentProps<"div">;
 
